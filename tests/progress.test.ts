@@ -9,7 +9,8 @@ import * as path from "node:path";
 import { ProgressTracker, bytes, count, progressText, SMALL_RUN } from "../src/core/progress.ts";
 import type { SyncRow, TransferSummary } from "../src/core/parse.ts";
 import { countCovered, included, parseRules, wildcardMatch } from "../src/core/coverage.ts";
-import type { WalkFs } from "../src/core/coverage.ts";
+import { vaultWalk } from "../src/core/vaultfs.ts";
+import type { AdapterLike } from "../src/core/vaultfs.ts";
 import { buildBlock, mergeIgnoreFile } from "../src/core/megaignore.ts";
 import { describe as shown, emptyState } from "../src/core/status.ts";
 
@@ -126,7 +127,23 @@ test("the covered files are counted with the exclusions applied (the vault's .me
     w("Thumbs.db");
     const text = mergeIgnoreFile(null, buildBlock({ configDir: ".obsidian", pluginDir: ".obsidian/plugins/mega-route", excludePatterns: ".trash/**\nLaTeX/compiled/*.aux", includePatterns: "", syncConfigFolder: true }).rules);
     w(".megaignore", text);
-    const c = await countCovered(fs.promises as unknown as WalkFs, dir, parseRules(text), path.sep);
+    // The adapter's listing as Obsidian gives it: vault-relative paths with "/", hidden entries included.
+    const adapter = {
+      async list(rel: string) {
+        const out = { files: [] as string[], folders: [] as string[] };
+        for (const e of fs.readdirSync(path.join(dir, rel), { withFileTypes: true })) {
+          const p = rel ? `${rel}/${e.name}` : e.name;
+          (e.isDirectory() ? out.folders : out.files).push(p);
+        }
+        return out;
+      },
+      async stat(rel: string) {
+        const st = fs.statSync(path.join(dir, rel));
+        return { type: st.isDirectory() ? ("folder" as const) : ("file" as const), size: st.size };
+      },
+    };
+    const walk = vaultWalk(adapter as unknown as AdapterLike, (p) => (p === "Notes/a.md" ? 4 : null));
+    const c = await countCovered(walk, parseRules(text));
     // Notes/a.md, Notes/b.md, .obsidian/app.json, LaTeX/compiled/main.pdf
     assert.equal(c.files, 4);
     assert.equal(c.bytes, 4 + 1 + 1 + 1);

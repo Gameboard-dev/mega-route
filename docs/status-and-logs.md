@@ -44,7 +44,8 @@ The percentage is **files in sync ÷ files the sync covers**, rising from 0% to 
 and never going back during a run:
 
 - **Files the sync covers**: the vault's files that the `.megaignore` rules let through, counted by the plugin with a
-  walk of the vault (names and sizes only, no file is read), with the rules evaluated as MEGA's engine does. It is
+  walk of the vault through Obsidian's file API (names and sizes only, no file is read), with the rules evaluated as
+  MEGA's engine does. Symbolic links are counted as what they point to (MEGA does not sync them). It is
   counted when a run starts, and again at most once a minute while the sync works, only if the vault changed; never
   while the sync is idle. If something cannot be evaluated exactly (size limits, `.megaignore` files inside
   sub-folders, an unusual regular expression), the tooltip says the count is approximate and the log says why.

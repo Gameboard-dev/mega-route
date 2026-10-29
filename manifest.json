@@ -1,7 +1,7 @@
 {
   "id": "mega-route",
   "name": "MEGA-Route",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "minAppVersion": "1.8.7",
   "description": "Keep your vault in a two-way sync with a MEGA folder through MEGAcmd, MEGA's official command-line tool: sign in, create, pause or remove the sync, and follow its status and logs. Requires MEGAcmd.",
   "author": "Gameboard-dev",

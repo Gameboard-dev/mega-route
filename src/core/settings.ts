@@ -22,7 +22,7 @@ export interface Settings {
   logFilter: "all" | "plugin" | "megacmd" | "sync";
 }
 
-/** Settings of this device only (Obsidian's per-vault localStorage), never synced with the vault. */
+/** Settings of this device only (App.loadLocalStorage / saveLocalStorage, per vault), never synced with the vault. */
 export interface DeviceSettings {
   /** MEGAcmd's client program; empty means the default place for this system. */
   clientPath: string;

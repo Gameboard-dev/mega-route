@@ -1,9 +1,5 @@
 /* MEGA-Route */
 
-.mega-route-hidden {
-  display: none !important;
-}
-
 /* The status dot: green synced, accent working, yellow paused, orange needs attention, red error, grey off. */
 .mega-route-dot {
   display: inline-block;

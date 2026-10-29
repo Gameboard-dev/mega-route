@@ -1,6 +1,6 @@
 {
   "name": "mega-route",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Keeps a two-way sync between an Obsidian vault and a MEGA folder, run by MEGA's own command-line tool MEGAcmd.",
   "main": "main.js",
   "private": true,

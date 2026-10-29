@@ -39,6 +39,24 @@ test("the built main.js has no shell use and no eval", () => {
   assert.match(text, /shell: false/);
 });
 
+test("Obsidian's review rules: no browser storage, no !important or :has in the styles, Node's fs only where needed", () => {
+  for (const f of files(path.join(root, "src"))) {
+    const text = fs.readFileSync(f, "utf8");
+    const rel = path.relative(root, f);
+    assert.doesNotMatch(text, /\b(localStorage|sessionStorage)\b/, `${rel}: use App.loadLocalStorage / saveLocalStorage`);
+    assert.doesNotMatch(text, /navigator\.clipboard\.read/, `${rel} reads the clipboard`);
+    if (!rel.endsWith("node.ts")) assert.doesNotMatch(text, /require\(\s*["'](node:)?fs["']\)|from\s+["'](node:)?fs(\/promises)?["']/, `${rel} loads fs outside node.ts`);
+  }
+  const main = path.join(root, "main.js");
+  if (fs.existsSync(main)) {
+    const text = fs.readFileSync(main, "utf8");
+    assert.doesNotMatch(text, /\b(localStorage|sessionStorage)\b/);
+    assert.doesNotMatch(text, /\b(execSync|execFileSync|spawnSync)\(|[^.\w]exec\(|cp\.exec\(/);
+  }
+  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  assert.doesNotMatch(css, /!important|:has\(/);
+});
+
 test("the runner passes shell: false, a time limit and an output cap, and the arguments as an array", async () => {
   const seen: unknown[] = [];
   const fake: ChildProcessApi = {

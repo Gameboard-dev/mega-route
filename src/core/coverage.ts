@@ -118,16 +118,12 @@ export function included(rules: Rules, path: string, name: string, kind: "d" | "
   return true;
 }
 
-export interface DirEntry {
-  name: string;
-  isDirectory(): boolean;
-  isFile(): boolean;
-  isSymbolicLink(): boolean;
-}
-
+/** The vault, as the walk sees it (core/vaultfs.ts: Obsidian's adapter). Paths are vault-relative, "" is the top. */
 export interface WalkFs {
-  readdir(path: string, options: { withFileTypes: true }): Promise<DirEntry[]>;
-  stat(path: string): Promise<{ size: number }>;
+  /** The names of the files and folders directly in a folder (hidden ones included). */
+  list(path: string): Promise<{ files: string[]; folders: string[] }>;
+  /** A file's size in bytes (null when unknown). */
+  size(path: string): Promise<number | null>;
 }
 
 export interface Coverage {
@@ -137,51 +133,52 @@ export interface Coverage {
   ms: number;
 }
 
-/** Counts the files under `root` that the rules let through (symbolic links are not synced by MEGA, so not counted). */
-export async function countCovered(fs: WalkFs, root: string, rules: Rules, sep = "/"): Promise<Coverage> {
+/**
+ * Counts the vault's files that the rules let through. Symbolic links are followed by the listing (MEGA does not sync
+ * them), which matters only in a vault that holds links.
+ */
+export async function countCovered(fs: WalkFs, rules: Rules): Promise<Coverage> {
   const started = Date.now();
   const approximate = [...rules.approximate];
   let files = 0;
   let bytes = 0;
-  const queue: { abs: string; rel: string }[] = [{ abs: root, rel: "" }];
+  const queue: string[] = [""];
   const sizes: Promise<void>[] = [];
   let nestedIgnore = false;
   while (queue.length) {
-    const { abs, rel } = queue.pop()!;
-    let entries: DirEntry[];
+    const rel = queue.pop()!;
+    let entries: { files: string[]; folders: string[] };
     try {
-      entries = await fs.readdir(abs, { withFileTypes: true });
+      entries = await fs.list(rel);
     } catch {
       approximate.push(`a folder that could not be read: ${rel || "(the vault)"}`);
       continue;
     }
-    for (const e of entries) {
-      const path = rel ? `${rel}/${e.name}` : e.name;
-      const top = rel === "";
-      if (e.isSymbolicLink()) continue;
-      if (e.isDirectory()) {
-        // MEGA's local bin of files deleted on MEGA, at the top of the sync, is never synced.
-        if (top && e.name === ".debris") continue;
-        if (included(rules, path, e.name, "d", top)) queue.push({ abs: abs + sep + e.name, rel: path });
-        continue;
-      }
-      if (!e.isFile()) continue;
-      if (e.name === ".megaignore") {
+    const top = rel === "";
+    for (const name of entries.folders) {
+      // MEGA's local bin of files deleted on MEGA, at the top of the sync, is never synced.
+      if (top && name === ".debris") continue;
+      const path = top ? name : `${rel}/${name}`;
+      if (included(rules, path, name, "d", top)) queue.push(path);
+    }
+    for (const name of entries.files) {
+      const path = top ? name : `${rel}/${name}`;
+      if (name === ".megaignore") {
         if (!top) nestedIgnore = true;
         if (top && !rules.syncIgnoreFile) continue;
       }
-      if (!included(rules, path, e.name, "f", top)) continue;
-      const file = abs + sep + e.name;
+      if (!included(rules, path, name, "f", top)) continue;
       const counted = rules.largerThan !== null || rules.smallerThan !== null;
       if (!counted) files++;
       sizes.push(
-        fs.stat(file).then(
-          (st) => {
+        fs.size(path).then(
+          (size) => {
+            if (size === null) return;
             if (counted) {
-              if ((rules.largerThan !== null && st.size > rules.largerThan) || (rules.smallerThan !== null && st.size < rules.smallerThan)) return;
+              if ((rules.largerThan !== null && size > rules.largerThan) || (rules.smallerThan !== null && size < rules.smallerThan)) return;
               files++;
             }
-            bytes += st.size;
+            bytes += size;
           },
           () => undefined,
         ),

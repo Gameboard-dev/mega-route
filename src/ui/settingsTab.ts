@@ -160,7 +160,7 @@ export class MegaRouteSettingTab extends PluginSettingTab {
         const b = buildBlock(p.ignoreOptions());
         preview.setText(b.rules.join("\n"));
         problems.setText(b.problems.map((x) => `Not written: "${x.pattern}" ${x.reason}.`).join("\n"));
-        help.toggleClass("mega-route-hidden", !b.rules.some((r) => /^[-+][a-z]*r:/.test(r)));
+        help.toggle(b.rules.some((r) => /^[-+][a-z]*r:/.test(r)));
       } catch (e) {
         problems.setText(e instanceof Error ? e.message : String(e));
       }
@@ -346,7 +346,8 @@ export class MegaRouteSettingTab extends PluginSettingTab {
       cls: "mega-route-input mega-route-code",
       attr: { inputmode: "numeric", autocomplete: "one-time-code", maxlength: "7", pattern: "[0-9 ]*", placeholder: "Optional: 6 digits", spellcheck: "false", "aria-label": "One-time code" },
     });
-    const cancel = codeRow.controlEl.createEl("button", { text: "Cancel", cls: "mega-route-hidden" });
+    const cancel = codeRow.controlEl.createEl("button", { text: "Cancel" });
+    cancel.hide();
     const button = codeRow.controlEl.createEl("button", { text: "Sign in", cls: "mod-cta" });
     const tip = box.createDiv({ cls: "mega-route-problem" });
 
@@ -370,7 +371,7 @@ export class MegaRouteSettingTab extends PluginSettingTab {
       code.value = "";
       codeRow.settingEl.removeClass("mega-route-attention");
       codeDesc.setText(defaultDesc);
-      cancel.addClass("mega-route-hidden");
+      cancel.hide();
       button.setText(busy ? "Signing in…" : "Sign in");
       button.disabled = busy;
       f?.(v);
@@ -399,7 +400,7 @@ export class MegaRouteSettingTab extends PluginSettingTab {
                   : "Enter the code from your authenticator app: MEGAcmd is waiting for it.",
               );
               codeRow.settingEl.addClass("mega-route-attention");
-              cancel.removeClass("mega-route-hidden");
+              cancel.show();
               button.setText("Send code");
               button.disabled = false;
               code.disabled = false;
@@ -432,7 +433,7 @@ export class MegaRouteSettingTab extends PluginSettingTab {
       const s = p.state;
       const op = p.opStatus;
       opLine.empty();
-      opLine.toggleClass("mega-route-hidden", !op);
+      opLine.toggle(!!op);
       if (op) {
         opLine.toggleClass("is-running", op.running);
         opLine.toggleClass("is-ok", !op.running && op.ok === true);

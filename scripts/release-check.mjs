@@ -62,6 +62,9 @@ for (const f of files) {
   if (/sourceMappingURL=data:/.test(text)) fail.push(`${f} has an inline source map (build with: npm run build)`);
   if (/\beval\(|new Function\(/.test(text)) fail.push(`${f} uses eval or new Function`);
   if (/shell:\s*true/.test(text)) fail.push(`${f} starts a process through a shell`);
+  if (f === "main.js" && /\b(localStorage|sessionStorage)\b/.test(text)) fail.push("main.js uses browser storage (use App.loadLocalStorage / saveLocalStorage)");
+  if (f === "main.js" && /\b(execSync|execFileSync|spawnSync)\(|[^.\w]exec\(/.test(text)) fail.push("main.js runs a command line (exec/execSync)");
+  if (f === "styles.css" && /!important|:has\(/.test(text)) fail.push("styles.css uses !important or :has (Obsidian's CSS lint)");
   for (const t of terms) if (text.toLowerCase().includes(t.toLowerCase())) fail.push(`${f} holds a word from the scan list (${t.length} characters)`);
 }
 

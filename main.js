@@ -5,8 +5,8 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
+  for (var name2 in all)
+    __defProp(target, name2, { get: all[name2], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -68,9 +68,9 @@ function maskEmail(email) {
   const local = email.slice(0, at);
   const domain = email.slice(at + 1);
   const dot = domain.lastIndexOf(".");
-  const name = dot > 0 ? domain.slice(0, dot) : domain;
+  const name2 = dot > 0 ? domain.slice(0, dot) : domain;
   const tld = dot > 0 ? domain.slice(dot) : "";
-  return `${local[0]}***@${name[0] ?? ""}***${tld}`;
+  return `${local[0]}***@${name2[0] ?? ""}***${tld}`;
 }
 var SYNC_COLUMNS = ["ID", "LOCALPATH", "REMOTEPATH", "RUN_STATE", "STATUS", "ERROR", "SIZE", "FILES", "DIRS"];
 function parseSyncList(stdout, sep = COL_SEP) {
@@ -90,8 +90,8 @@ function parseSyncList(stdout, sep = COL_SEP) {
       problems.push(`A row has ${cells.length} columns, the header ${header.length}: ${line.slice(0, 200)}`);
       continue;
     }
-    const get = (name) => {
-      const i = header.indexOf(name);
+    const get = (name2) => {
+      const i = header.indexOf(name2);
       return i >= 0 ? cells[i] : "";
     };
     const num = (s) => /^\d+$/.test(s) ? Number(s) : null;
@@ -147,8 +147,8 @@ function parseTransferList(stdout, sep = COL_SEP) {
       if (cells.includes("TAG") && cells.includes("STATE")) header = cells;
       continue;
     }
-    const get = (name) => {
-      const i = header.indexOf(name);
+    const get = (name2) => {
+      const i = header.indexOf(name2);
       return i >= 0 && i < cells.length ? cells[i] : "";
     };
     out.push({ type: get("TYPE"), tag: get("TAG"), source: get("SOURCEPATH"), destination: get("DESTINYPATH"), progress: get("PROGRESS"), state: get("STATE") });
@@ -166,8 +166,8 @@ function parseSyncIssues(stdout, sep = COL_SEP) {
       if (cells.includes("ISSUE_ID")) header = cells;
       continue;
     }
-    const get = (name) => {
-      const i = header.indexOf(name);
+    const get = (name2) => {
+      const i = header.indexOf(name2);
       return i >= 0 && i < cells.length ? cells[i] : "";
     };
     out.push({ id: get("ISSUE_ID"), sync: get("PARENT_SYNC"), reason: get("REASON") });
@@ -498,10 +498,10 @@ var ProgressTracker = class {
 var STALL_MS = 12e4;
 var RATE_WINDOW_MS = 6e4;
 function shortName(path, max = 40) {
-  const name = path.split(/[\\/]/).filter(Boolean).pop() ?? path;
-  if (name.length <= max) return name;
+  const name2 = path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+  if (name2.length <= max) return name2;
   const half = Math.floor((max - 1) / 2);
-  return `${name.slice(0, half)}\u2026${name.slice(name.length - (max - 1 - half))}`;
+  return `${name2.slice(0, half)}\u2026${name2.slice(name2.length - (max - 1 - half))}`;
 }
 var ActivityMeter = class {
   constructor() {
@@ -758,13 +758,13 @@ var Controller = class {
    * One action at a time (sign-in, sign-out, creating, pausing …): while one runs, another is refused at once, never
    * queued behind it (a sign-in queued behind a sign-out ran into it half-way). `state.operation` names the one running.
    */
-  async exclusive(name, refuse, f) {
+  async exclusive(name2, refuse, f) {
     if (this.state.operation) {
       const message = `${this.state.operation} is in progress: wait for it to finish, then try again.`;
-      this.env.log("warn", `${name} refused: ${message}`);
+      this.env.log("warn", `${name2} refused: ${message}`);
       return refuse(message);
     }
-    this.state.operation = name;
+    this.state.operation = name2;
     try {
       return await this.serial(f);
     } finally {
@@ -1452,10 +1452,10 @@ async function checkClientPath(p, input, vaultPath, stat) {
     }
   } catch {
   }
-  const name = basename(path);
+  const name2 = basename(path);
   const allowed = clientNames(p.os);
-  if (!allowed.includes(p.os === "windows" ? name.toLowerCase() : name)) {
-    return { ok: false, reason: `The file must be MEGAcmd's client program (${p.os === "windows" ? "MegaClient.exe" : "mega-exec"}), not ${name}.` };
+  if (!allowed.includes(p.os === "windows" ? name2.toLowerCase() : name2)) {
+    return { ok: false, reason: `The file must be MEGAcmd's client program (${p.os === "windows" ? "MegaClient.exe" : "mega-exec"}), not ${name2}.` };
   }
   const lower = (s) => p.os === "windows" ? s.toLowerCase().replace(/\//g, "\\") : s;
   const v = lower(vaultPath).replace(/[\\/]+$/, "");
@@ -1688,58 +1688,56 @@ function matches(r, text) {
   if (r.re) return r.re.test(text);
   return r.caseSensitive ? wildcardMatch(text, r.pattern) : wildcardMatch(text.toUpperCase(), r.pattern.toUpperCase());
 }
-function included(rules, path, name, kind, top) {
+function included(rules, path, name2, kind, top) {
   for (let i = rules.rules.length - 1; i >= 0; i--) {
     const r = rules.rules[i];
     if (r.target !== "a" && r.target !== kind) continue;
     if (r.type === "N" && !top) continue;
-    if (matches(r, r.type === "p" ? path : name)) return r.include;
+    if (matches(r, r.type === "p" ? path : name2)) return r.include;
   }
   return true;
 }
-async function countCovered(fs, root, rules, sep = "/") {
+async function countCovered(fs, rules) {
   const started = Date.now();
   const approximate = [...rules.approximate];
   let files = 0;
   let bytes2 = 0;
-  const queue = [{ abs: root, rel: "" }];
+  const queue = [""];
   const sizes = [];
   let nestedIgnore = false;
   while (queue.length) {
-    const { abs, rel } = queue.pop();
+    const rel = queue.pop();
     let entries;
     try {
-      entries = await fs.readdir(abs, { withFileTypes: true });
+      entries = await fs.list(rel);
     } catch {
       approximate.push(`a folder that could not be read: ${rel || "(the vault)"}`);
       continue;
     }
-    for (const e of entries) {
-      const path = rel ? `${rel}/${e.name}` : e.name;
-      const top = rel === "";
-      if (e.isSymbolicLink()) continue;
-      if (e.isDirectory()) {
-        if (top && e.name === ".debris") continue;
-        if (included(rules, path, e.name, "d", top)) queue.push({ abs: abs + sep + e.name, rel: path });
-        continue;
-      }
-      if (!e.isFile()) continue;
-      if (e.name === ".megaignore") {
+    const top = rel === "";
+    for (const name2 of entries.folders) {
+      if (top && name2 === ".debris") continue;
+      const path = top ? name2 : `${rel}/${name2}`;
+      if (included(rules, path, name2, "d", top)) queue.push(path);
+    }
+    for (const name2 of entries.files) {
+      const path = top ? name2 : `${rel}/${name2}`;
+      if (name2 === ".megaignore") {
         if (!top) nestedIgnore = true;
         if (top && !rules.syncIgnoreFile) continue;
       }
-      if (!included(rules, path, e.name, "f", top)) continue;
-      const file = abs + sep + e.name;
+      if (!included(rules, path, name2, "f", top)) continue;
       const counted = rules.largerThan !== null || rules.smallerThan !== null;
       if (!counted) files++;
       sizes.push(
-        fs.stat(file).then(
-          (st) => {
+        fs.size(path).then(
+          (size) => {
+            if (size === null) return;
             if (counted) {
-              if (rules.largerThan !== null && st.size > rules.largerThan || rules.smallerThan !== null && st.size < rules.smallerThan) return;
+              if (rules.largerThan !== null && size > rules.largerThan || rules.smallerThan !== null && size < rules.smallerThan) return;
               files++;
             }
-            bytes2 += st.size;
+            bytes2 += size;
           },
           () => void 0
         )
@@ -1752,14 +1750,51 @@ async function countCovered(fs, root, rules, sep = "/") {
   return { files, bytes: bytes2, approximate, ms: Date.now() - started };
 }
 
+// src/core/vaultfs.ts
+function name(path) {
+  return path.slice(path.lastIndexOf("/") + 1);
+}
+function vaultWalk(adapter, cachedSize) {
+  return {
+    async list(path) {
+      const l = await adapter.list(path);
+      return { files: l.files.map(name), folders: l.folders.map(name) };
+    },
+    async size(path) {
+      const known = cachedSize(path);
+      if (known !== null) return known;
+      const st = await adapter.stat(path);
+      return st && st.type === "file" ? st.size : null;
+    }
+  };
+}
+function adapterAppend(adapter) {
+  return {
+    appendFile: (path, data) => adapter.append(path, data),
+    async stat(path) {
+      const st = await adapter.stat(path);
+      if (!st) throw Object.assign(new Error(`${path} does not exist`), { code: "ENOENT" });
+      return { size: st.size };
+    },
+    rename: (from, to) => adapter.rename(from, to),
+    async rm(path) {
+      if (await adapter.exists(path)) await adapter.remove(path);
+    }
+  };
+}
+async function readVaultText(adapter, path) {
+  if (!await adapter.exists(path)) return null;
+  return adapter.read(path);
+}
+
 // src/core/settings.ts
 var SETTINGS_VERSION = 3;
 var DEFAULT_EXCLUDES = [".git/**", "node_modules/**"].join("\n");
 function defaultSettings(vaultName) {
-  const name = vaultName.replace(/[\u0000-\u001f"\\/]/g, "").trim() || "Obsidian";
+  const name2 = vaultName.replace(/[\u0000-\u001f"\\/]/g, "").trim() || "Obsidian";
   return {
     settingsVersion: SETTINGS_VERSION,
-    remoteFolder: `/${name}`,
+    remoteFolder: `/${name2}`,
     excludePatterns: DEFAULT_EXCLUDES,
     includePatterns: "",
     syncConfigFolder: true,
@@ -1838,7 +1873,7 @@ function loadNode() {
     const os = require("os");
     const proc = require("process");
     const path = require("path");
-    return { cp, fsp: fs.promises, wfs: fs.promises, afs: fs.promises, path, os, env: proc.env };
+    return { cp, fsp: fs.promises, wfs: fs.promises, path, os, env: proc.env };
   } catch {
     return null;
   }
@@ -2179,7 +2214,7 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
         const b = buildBlock(p.ignoreOptions());
         preview.setText(b.rules.join("\n"));
         problems.setText(b.problems.map((x) => `Not written: "${x.pattern}" ${x.reason}.`).join("\n"));
-        help.toggleClass("mega-route-hidden", !b.rules.some((r) => /^[-+][a-z]*r:/.test(r)));
+        help.toggle(b.rules.some((r) => /^[-+][a-z]*r:/.test(r)));
       } catch (e) {
         problems.setText(e instanceof Error ? e.message : String(e));
       }
@@ -2274,8 +2309,8 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
     const p = this.plugin;
     const s = p.state;
     box.empty();
-    const row = (name, value, level, fill) => {
-      const set = new import_obsidian3.Setting(box).setName(name);
+    const row = (name2, value, level, fill) => {
+      const set = new import_obsidian3.Setting(box).setName(name2);
       set.descEl.createSpan({ cls: `mega-route-dot is-${level}` });
       set.descEl.appendText(value);
       if (fill) fill(set.controlEl);
@@ -2341,7 +2376,8 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
       cls: "mega-route-input mega-route-code",
       attr: { inputmode: "numeric", autocomplete: "one-time-code", maxlength: "7", pattern: "[0-9 ]*", placeholder: "Optional: 6 digits", spellcheck: "false", "aria-label": "One-time code" }
     });
-    const cancel = codeRow.controlEl.createEl("button", { text: "Cancel", cls: "mega-route-hidden" });
+    const cancel = codeRow.controlEl.createEl("button", { text: "Cancel" });
+    cancel.hide();
     const button = codeRow.controlEl.createEl("button", { text: "Sign in", cls: "mod-cta" });
     const tip = box.createDiv({ cls: "mega-route-problem" });
     const outRow = new import_obsidian3.Setting(box).setName("Sign out of MEGA").setDesc("Pauses the sync, cancels transfers in progress, then signs MEGAcmd out, which also removes its sync of this vault. Your files stay as they are.");
@@ -2359,7 +2395,7 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
       code.value = "";
       codeRow.settingEl.removeClass("mega-route-attention");
       codeDesc.setText(defaultDesc);
-      cancel.addClass("mega-route-hidden");
+      cancel.hide();
       button.setText(busy ? "Signing in\u2026" : "Sign in");
       button.disabled = busy;
       f?.(v);
@@ -2383,7 +2419,7 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
               info.retry ? `That code was not accepted (wrong, or expired). Enter the next code from your authenticator app (try ${info.attempt} of ${info.of}); the password is not needed again.` : "Enter the code from your authenticator app: MEGAcmd is waiting for it."
             );
             codeRow.settingEl.addClass("mega-route-attention");
-            cancel.removeClass("mega-route-hidden");
+            cancel.show();
             button.setText("Send code");
             button.disabled = false;
             code.disabled = false;
@@ -2415,7 +2451,7 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
       const s = p.state;
       const op = p.opStatus;
       opLine.empty();
-      opLine.toggleClass("mega-route-hidden", !op);
+      opLine.toggle(!!op);
       if (op) {
         opLine.toggleClass("is-running", op.running);
         opLine.toggleClass("is-ok", !op.running && op.ok === true);
@@ -2510,7 +2546,6 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
 
 // src/main.ts
 var DEVICE_KEY = "mega-route-device";
-var LEGACY_DEVICE_ID_KEY = "mega-sync-fork-device-id";
 var BACKUP_FILE = "settings-2.x-backup.json";
 var BUSY_POLL_MS = 5e3;
 var FULL_REFRESH_MS = 5 * 6e4;
@@ -2561,10 +2596,6 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
     this.node = loadNode();
     await this.loadSettings();
     this.device = readDevice(this.app.loadLocalStorage(DEVICE_KEY));
-    try {
-      window.localStorage.removeItem(LEGACY_DEVICE_ID_KEY);
-    } catch {
-    }
     if (!this.node) {
       this.say("error", "Node's modules could not be loaded, so MEGAcmd cannot be run from this Obsidian.");
     }
@@ -2601,8 +2632,8 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
         await this.refresh(true);
       }
     });
-    if (this.node && this.vaultPath) {
-      const file = new LogFile(this.node.afs, this.node.path.join(this.vaultPath, this.pluginDir(), "mega-route.log"));
+    if (this.node) {
+      const file = new LogFile(adapterAppend(this.app.vault.adapter), `${this.pluginDir()}/mega-route.log`);
       for (const l of this.log.all()) if (l.source === "plugin") file.add(formatLine(l, true));
       this.register(this.log.subscribe((added) => added.forEach((l) => l.source === "plugin" && file.add(formatLine(l, true)))));
       let failed = false;
@@ -2709,7 +2740,7 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
     this.paths = check.ok ? pathsFor(sys, check.path) : wanted ? pathsFor(sys, wanted) : null;
     const lister = processLister(sys);
     const ignorePath = node.path.join(this.vaultPath, ".megaignore");
-    const backupPath = node.path.join(this.vaultPath, this.pluginDir(), "megaignore-before-last-write.txt");
+    const backupPath = `${this.pluginDir()}/megaignore-before-last-write.txt`;
     const env = {
       windows: sys.os === "windows",
       vaultPath: this.vaultPath,
@@ -2719,26 +2750,24 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
       processes: lister ? new ProcessRunner(node.cp, lister.program, lister.args) : null,
       serverNames: serverProcessNames(sys.os),
       desktopAppNames: desktopAppProcessNames(sys.os),
-      // Through Node's fs, not Obsidian's adapter: MEGA marks .megaignore hidden, and the adapter's writeFile ("w")
-      // cannot replace a hidden file on Windows (EPERM). See core/fsio.ts.
+      // Read through Obsidian's adapter.
       readIgnore: async () => {
         try {
-          return new TextDecoder("utf-8").decode(await node.wfs.readFile(ignorePath));
+          return await readVaultText(adapter, ".megaignore");
         } catch (e) {
-          if (e.code === "ENOENT") return null;
-          throw new Error(`Could not read ${ignorePath}: ${e instanceof Error ? e.message : String(e)}`);
+          throw new Error(`Could not read .megaignore: ${e instanceof Error ? e.message : String(e)}`);
         }
       },
       writeIgnore: async (text) => {
         let before = null;
         try {
-          before = await node.wfs.readFile(ignorePath);
+          before = await readVaultText(adapter, ".megaignore");
         } catch {
           before = null;
         }
-        if (before) {
+        if (before !== null) {
           try {
-            await writeInPlace(node.wfs, backupPath, new TextDecoder("utf-8").decode(before));
+            await adapter.write(backupPath, before);
           } catch (e) {
             throw new Error(`.megaignore was not changed, because its copy could not be kept first. ${writeFailure(backupPath, e)}`);
           }
@@ -2839,13 +2868,15 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
     if (!node || !this.vaultPath || this.counting) return;
     this.counting = true;
     try {
+      const adapter = this.app.vault.adapter;
       let text = null;
       try {
-        text = new TextDecoder("utf-8").decode(await node.wfs.readFile(node.path.join(this.vaultPath, ".megaignore")));
+        text = await readVaultText(adapter, ".megaignore");
       } catch {
         text = null;
       }
-      const c = await countCovered(node.fsp, this.vaultPath, parseRules(text), this.sys?.os === "windows" ? "\\" : "/");
+      const walk = vaultWalk(adapter, (p) => this.app.vault.getFileByPath(p)?.stat.size ?? null);
+      const c = await countCovered(walk, parseRules(text));
       this.local = { files: c.files, bytes: c.bytes, approximate: c.approximate };
       this.countDirty = false;
       this.lastCount = Date.now();
@@ -3066,8 +3097,8 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
   }
   // ---------------------------------------------------------------- status bar, ribbon, menu
   applyVisibility() {
-    this.statusEl?.toggleClass("mega-route-hidden", !this.settings.showStatusBar);
-    this.ribbonEl?.toggleClass("mega-route-hidden", !this.settings.showRibbon);
+    this.statusEl?.toggle(this.settings.showStatusBar);
+    this.ribbonEl?.toggle(this.settings.showRibbon);
   }
   render() {
     const s = this.shown;

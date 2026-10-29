@@ -12,6 +12,8 @@ import { parseTransferList, COL_SEP } from "../src/core/parse.ts";
 import { emptyState, interruptedSignOut } from "../src/core/status.ts";
 import { LogFile } from "../src/core/logfile.ts";
 import type { AppendFs } from "../src/core/logfile.ts";
+import { adapterAppend } from "../src/core/vaultfs.ts";
+import type { AdapterLike } from "../src/core/vaultfs.ts";
 
 const row = (files: number, size: string, status = "Syncing"): SyncRow => ({ id: "Ab12Cd34", localPath: "C:\\v", remotePath: "/RAG", runState: "Running", status, error: "NO", size, files, dirs: 1 });
 const q = (uploads: number): TransferSummary => ({ downloads: 0, downloaded: "0.00  B", downloadTotal: "0.00  B", downloadPercent: 0, uploads, uploaded: "1.00 MB", uploadTotal: "900.00 MB", uploadPercent: 0 });
@@ -97,4 +99,32 @@ test("the plugin's log file: appended, cut over at its size limit, never throwin
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("the plugin's log file through Obsidian's adapter: appended and cut over the same way", async () => {
+  const files = new Map<string, string>();
+  const adapter = {
+    stat: async (p: string) => (files.has(p) ? { type: "file" as const, size: files.get(p)!.length } : null),
+    exists: async (p: string) => files.has(p),
+    append: async (p: string, d: string) => void files.set(p, (files.get(p) ?? "") + d),
+    rename: async (a: string, b: string) => {
+      if (files.has(b)) throw new Error("Destination file already exists!");
+      files.set(b, files.get(a)!);
+      files.delete(a);
+    },
+    remove: async (p: string) => void files.delete(p),
+  };
+  const f = new LogFile(adapterAppend(adapter as unknown as AdapterLike), ".obsidian/plugins/mega-route/mega-route.log", 100);
+  f.add("first");
+  assert.equal(await f.flush(), null);
+  f.add("x".repeat(120));
+  assert.equal(await f.flush(), null);
+  f.add("second cut");
+  assert.equal(await f.flush(), null);
+  f.add("y".repeat(120));
+  assert.equal(await f.flush(), null);
+  f.add("after");
+  assert.equal(await f.flush(), null, "the old .1.log is removed before the rename");
+  assert.equal(files.get(".obsidian/plugins/mega-route/mega-route.log"), "after\n");
+  assert.match(files.get(".obsidian/plugins/mega-route/mega-route.1.log")!, /^second cut\ny+\n$/);
 });

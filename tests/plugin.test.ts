@@ -28,6 +28,16 @@ class El {
     if (on) this.cls.add(c);
     else this.cls.delete(c);
   }
+  hidden = false;
+  toggle(show: boolean) {
+    this.hidden = !show;
+  }
+  hide() {
+    this.hidden = true;
+  }
+  show() {
+    this.hidden = false;
+  }
   empty() {
     this.children = [];
     this.text = "";

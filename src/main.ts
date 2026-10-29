@@ -15,7 +15,7 @@ import { ProcessRunner } from "./core/runner.ts";
 import { redactMegaCmdLine } from "./core/secrets.ts";
 import { writeFailure, writeInPlace } from "./core/fsio.ts";
 import { countCovered, parseRules } from "./core/coverage.ts";
-import type { WalkFs } from "./core/coverage.ts";
+import { adapterAppend, readVaultText, vaultWalk } from "./core/vaultfs.ts";
 import { ActivityMeter, ProgressTracker } from "./core/progress.ts";
 import type { Activity, Local, Progress } from "./core/progress.ts";
 import { DEFAULT_DEVICE, migrate, readDevice, SETTINGS_VERSION, withoutCredentials } from "./core/settings.ts";
@@ -27,9 +27,8 @@ import type { NodeApis } from "./node.ts";
 import { confirm, confirmCreate } from "./ui/modals.ts";
 import { MegaRouteSettingTab, MobileSettingTab } from "./ui/settingsTab.ts";
 
-/** Per-device settings, in Obsidian's per-vault localStorage (the key does not depend on the plugin's id). */
+/** Per-device settings, through Obsidian's App.loadLocalStorage / saveLocalStorage (per vault and per device). */
 const DEVICE_KEY = "mega-route-device";
-const LEGACY_DEVICE_ID_KEY = "mega-sync-fork-device-id";
 const BACKUP_FILE = "settings-2.x-backup.json";
 /** While the sync works: status every 5 s. */
 const BUSY_POLL_MS = 5_000;
@@ -68,13 +67,6 @@ export default class MegaRoutePlugin extends Plugin {
     this.node = loadNode();
     await this.loadSettings();
     this.device = readDevice(this.app.loadLocalStorage(DEVICE_KEY));
-    // 2.x kept a random install id (for its instance lock, gone with its engine) in this app's localStorage; nothing
-    // in it is needed now, so it is removed once.
-    try {
-      window.localStorage.removeItem(LEGACY_DEVICE_ID_KEY);
-    } catch {
-      // storage unavailable: nothing to remove
-    }
     if (!this.node) {
       this.say("error", "Node's modules could not be loaded, so MEGAcmd cannot be run from this Obsidian.");
     }
@@ -117,9 +109,10 @@ export default class MegaRoutePlugin extends Plugin {
         await this.refresh(true);
       }
     });
-    // The plugin's lines are also kept in mega-route.log in its folder (read it after a reload; never synced).
-    if (this.node && this.vaultPath) {
-      const file = new LogFile(this.node.afs, this.node.path.join(this.vaultPath, this.pluginDir(), "mega-route.log"));
+    // The plugin's lines are also kept in mega-route.log in its folder (read it after a reload; never synced), written
+    // through Obsidian's adapter.
+    if (this.node) {
+      const file = new LogFile(adapterAppend(this.app.vault.adapter), `${this.pluginDir()}/mega-route.log`);
       for (const l of this.log.all()) if (l.source === "plugin") file.add(formatLine(l, true));
       this.register(this.log.subscribe((added) => added.forEach((l) => l.source === "plugin" && file.add(formatLine(l, true)))));
       let failed = false;
@@ -239,7 +232,7 @@ export default class MegaRoutePlugin extends Plugin {
     this.paths = check.ok ? pathsFor(sys, check.path) : wanted ? pathsFor(sys, wanted) : null;
     const lister = processLister(sys);
     const ignorePath = node.path.join(this.vaultPath, ".megaignore");
-    const backupPath = node.path.join(this.vaultPath, this.pluginDir(), "megaignore-before-last-write.txt");
+    const backupPath = `${this.pluginDir()}/megaignore-before-last-write.txt`;
     const env: ControllerEnv = {
       windows: sys.os === "windows",
       vaultPath: this.vaultPath,
@@ -249,31 +242,32 @@ export default class MegaRoutePlugin extends Plugin {
       processes: lister ? new ProcessRunner(node.cp, lister.program, lister.args) : null,
       serverNames: serverProcessNames(sys.os),
       desktopAppNames: desktopAppProcessNames(sys.os),
-      // Through Node's fs, not Obsidian's adapter: MEGA marks .megaignore hidden, and the adapter's writeFile ("w")
-      // cannot replace a hidden file on Windows (EPERM). See core/fsio.ts.
+      // Read through Obsidian's adapter.
       readIgnore: async () => {
         try {
-          return new TextDecoder("utf-8").decode(await node.wfs.readFile(ignorePath));
+          return await readVaultText(adapter, ".megaignore");
         } catch (e) {
-          if ((e as { code?: string }).code === "ENOENT") return null;
-          throw new Error(`Could not read ${ignorePath}: ${e instanceof Error ? e.message : String(e)}`);
+          throw new Error(`Could not read .megaignore: ${e instanceof Error ? e.message : String(e)}`);
         }
       },
       writeIgnore: async (text) => {
-        // The file as it was is kept once per write, beside the plugin's settings, before it is changed.
-        let before: Uint8Array | null = null;
+        // The file as it was is kept once per write, beside the plugin's settings, before it is changed (adapter).
+        let before: string | null = null;
         try {
-          before = await node.wfs.readFile(ignorePath);
+          before = await readVaultText(adapter, ".megaignore");
         } catch {
           before = null;
         }
-        if (before) {
+        if (before !== null) {
           try {
-            await writeInPlace(node.wfs, backupPath, new TextDecoder("utf-8").decode(before));
+            await adapter.write(backupPath, before);
           } catch (e) {
             throw new Error(`.megaignore was not changed, because its copy could not be kept first. ${writeFailure(backupPath, e)}`);
           }
         }
+        // Written with Node's fs, not the adapter: MEGA marks .megaignore hidden, and the adapter's write (Node's
+        // writeFile, "w", CREATE_ALWAYS on Windows) cannot replace a hidden file there (EPERM). writeInPlace opens it
+        // with "r+" and keeps its attributes. This is the plugin's only write with Node's fs (core/fsio.ts).
         try {
           await writeInPlace(node.wfs, ignorePath, text);
         } catch (e) {
@@ -403,13 +397,16 @@ export default class MegaRoutePlugin extends Plugin {
     if (!node || !this.vaultPath || this.counting) return;
     this.counting = true;
     try {
+      const adapter = this.app.vault.adapter;
       let text: string | null = null;
       try {
-        text = new TextDecoder("utf-8").decode(await node.wfs.readFile(node.path.join(this.vaultPath, ".megaignore")));
+        text = await readVaultText(adapter, ".megaignore");
       } catch {
         text = null;
       }
-      const c = await countCovered(node.fsp as unknown as WalkFs, this.vaultPath, parseRules(text), this.sys?.os === "windows" ? "\\" : "/");
+      // Through Obsidian's adapter (folder listings) and the vault's file list (sizes), not Node's fs.
+      const walk = vaultWalk(adapter, (p) => this.app.vault.getFileByPath(p)?.stat.size ?? null);
+      const c = await countCovered(walk, parseRules(text));
       this.local = { files: c.files, bytes: c.bytes, approximate: c.approximate };
       this.countDirty = false;
       this.lastCount = Date.now();
@@ -645,8 +642,8 @@ export default class MegaRoutePlugin extends Plugin {
   // ---------------------------------------------------------------- status bar, ribbon, menu
 
   applyVisibility(): void {
-    this.statusEl?.toggleClass("mega-route-hidden", !this.settings.showStatusBar);
-    this.ribbonEl?.toggleClass("mega-route-hidden", !this.settings.showRibbon);
+    this.statusEl?.toggle(this.settings.showStatusBar);
+    this.ribbonEl?.toggle(this.settings.showRibbon);
   }
 
   private render(): void {

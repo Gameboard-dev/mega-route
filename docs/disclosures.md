@@ -19,6 +19,7 @@ policies ask a plugin to disclose, and what they forbid, and says plainly what M
 - [Ads](#ads)
 - [Source code and licences](#source-code-and-licences)
 - [Desktop only](#desktop-only)
+- [Node.js modules, clipboard and local storage](#nodejs-modules-clipboard-and-local-storage)
 - [Security of the commands it runs](#security-of-the-commands-it-runs)
 
 ## In short
@@ -130,7 +131,8 @@ logs, in the `.megaCmd` folder above. Signing out in MEGAcmd (`logout`) clears i
   … `# END MEGA-Route`, when you create the sync, when you change the exclusions while the sync exists, and when you
   press **Write to .megaignore now**. Every other line of the file is kept exactly as it was. MEGA's desktop app reads
   the same file when it syncs or backs up this folder. MEGA marks the file hidden; the plugin changes it in place, so it
-  stays hidden, and reads it back to check. Before each change, the file as it was is copied to
+  stays hidden, and reads it back to check (this write uses Node's `fs`; see
+  [below](#nodejs-modules-clipboard-and-local-storage)). Before each change, the file as it was is copied to
   `megaignore-before-last-write.txt` in the plugin's folder.
 - **`mega-route.log`** (and `mega-route.1.log`) in the plugin's folder: the plugin's own log, kept so it can be read
   after a reload; the same redacted lines as the log pane (no password, code or full address). At most about 2 MB.
@@ -138,8 +140,9 @@ logs, in the `.megaCmd` folder above. Signing out in MEGAcmd (`logout`) clears i
   display switches). Nothing in it is ever run or used as a program's path.
 - **`settings-2.x-backup.json`** in the plugin's folder, written once when settings from version 2 are moved: the old
   settings and sync state that no longer apply (without the sign-in data).
-- **Per-device settings** (MEGAcmd's path, *Start MEGAcmd with Obsidian*, the check interval) are kept in Obsidian's
-  local storage for this vault on this device, not in the vault.
+- **Per-device settings** (MEGAcmd's path, *Start MEGAcmd with Obsidian*, the check interval, the log pane's *Wrap
+  lines*), and a note of a sign-out in progress, are kept through Obsidian's `App.saveLocalStorage` for this vault on
+  this device, not in the vault.
 
 The sync itself changes files in the vault, as any sync does: MEGAcmd downloads what changed on MEGA and applies
 deletions made on MEGA (keeping deleted files in a hidden debris folder at the vault's top, MEGA's own safeguard).
@@ -169,6 +172,42 @@ The plugin's source is in this repository, under the MIT licence; `main.js` is b
 
 The manifest says `isDesktopOnly: true`: the plugin starts programs, which Obsidian on phones and tablets cannot. Should
 it be loaded there anyway, it shows a note saying so and does nothing else.
+
+## Node.js modules, clipboard and local storage
+
+What Obsidian's automated review reports, and why each use is there.
+
+**`child_process` (running programs).** The plugin exists to run MEGAcmd, so this cannot go. It runs **only MEGAcmd's
+own client, which you install** (`MegaClient.exe` on Windows, `mega-exec` on macOS and Linux), and the system's process
+list (`%SystemRoot%\System32\tasklist.exe` on Windows, `/bin/ps` elsewhere) to see whether MEGAcmd's server runs. **Never
+a shell**: every process is started in one place, `src/core/runner.ts`, with `execFile` or `spawn`, an argument array
+and `shell: false`, hidden, with a time limit and an output cap. The client's path must end in MEGAcmd's client name,
+exist, and lie outside the vault (`src/core/locate.ts`, `checkClientPath`); it comes from MEGAcmd's usual install folder
+or a per-device setting, never from `data.json`. There is no `exec`, `execSync` or `shell: true` anywhere (the tests
+check the sources and the built `main.js`, `tests/noshell.test.ts`).
+
+**`fs` (files).** Used only where Obsidian's vault API cannot do the job:
+
+| Use | Where | Why not the vault API |
+|---|---|---|
+| Check that MEGAcmd's client program exists before running it (`stat`) | `src/core/locate.ts` via `src/main.ts` (`setupController`) | It is outside the vault, in MEGAcmd's install folder. |
+| Read MEGAcmd's log file to show it in the log pane (`stat`, `open` read-only) | `src/core/log.ts` (`LogTail`) | It is outside the vault, in MEGAcmd's own folder. |
+| Write `.megaignore` in place, and read it back to check (`open` with `r+`, `write`, `truncate`) | `src/core/fsio.ts` (`writeInPlace`) | MEGA marks `.megaignore` hidden. The vault API's write uses Node's `writeFile` (opened with "w", `CREATE_ALWAYS` on Windows), which Windows refuses for an existing hidden file (`EPERM`). Opening it with `r+` keeps the file and its attributes. |
+
+Everything else goes through Obsidian's API (`src/core/vaultfs.ts`): reading `.megaignore`, the copy kept before each
+write, the plugin's own log file (`DataAdapter.append`), `data.json` (`loadData`/`saveData`), the 2.x settings backup,
+and counting the vault's files for the progress (`DataAdapter.list`, sizes from the vault's file list or
+`DataAdapter.stat`). Node's modules are loaded in one place, `src/node.ts`, and only on the desktop.
+
+**Clipboard.** Only the log pane's **Copy** button uses it: when you press it, the lines shown are written to the
+clipboard (`navigator.clipboard.writeText`). The plugin never reads the clipboard.
+
+**Local storage.** Only through Obsidian's `App.loadLocalStorage` / `App.saveLocalStorage` (per vault, per device): the
+per-device settings and the note of a sign-out in progress. The plugin does not use `window.localStorage` or
+`sessionStorage` directly.
+
+**Styles.** `styles.css` uses Obsidian's CSS variables and no `!important`; elements are shown and hidden with
+Obsidian's `toggle`, `show` and `hide`.
 
 ## Security of the commands it runs
 

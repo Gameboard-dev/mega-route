@@ -28,6 +28,13 @@ What MEGA-Route runs, sends and stores, as Obsidian's
   servers, end-to-end encrypted by MEGA's software.
 - **Files outside the vault**: the plugin reads MEGAcmd's log file (in MEGAcmd's own folder) to show it, and checks that
   MEGAcmd's program is there. MEGAcmd keeps its session and settings in its own folder.
+- **Node.js `child_process`**: it runs only MEGAcmd's own client, which you install (`MegaClient.exe` on Windows,
+  `mega-exec` on macOS and Linux), and the system's process list (`tasklist`, `ps`) to see whether MEGAcmd runs; never
+  a shell, always an argument array with `shell: false`.
+- **Node.js `fs`**: only where Obsidian's vault API cannot do the job: reading MEGAcmd's log and checking its program
+  (both outside the vault), and writing `.megaignore` in place (MEGA marks it hidden, and the vault API's write cannot
+  replace a hidden file on Windows). Everything else in the vault goes through Obsidian's API.
+- **Clipboard**: written only when you press **Copy** in the log pane; never read.
 - **Desktop only**: it starts a program, which Obsidian on phones and tablets cannot.
 - **No telemetry, no ads.**
 
