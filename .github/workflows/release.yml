@@ -42,7 +42,8 @@ jobs:
           npm test
 
       - name: The built main.js is the committed one
-        run: git diff --exit-code -- main.js || { echo "main.js in the tag differs from a fresh build: rebuild and commit it"; exit 1; }
+        run: |
+          git diff --exit-code -- main.js || { echo "main.js in the tag differs from a fresh build; rebuild and commit it"; exit 1; }
 
       - name: Only the three files, the versions agree, nothing personal inside
         run: |
