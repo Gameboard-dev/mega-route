@@ -20,6 +20,8 @@ if (callsPath && process.env.MEGACMD_DO_NOT_REDACT_LINES !== undefined) fs.appen
 const state = statePath && fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, "utf8")) : {};
 const save = () => statePath && fs.writeFileSync(statePath, JSON.stringify(state, null, 1));
 
+// MEGAcmd prints Windows paths with the \\?\ prefix (long-path form); other systems' paths as they are.
+const LONG = process.platform === "win32" ? "\\\\?\\" : "";
 const out = (s) => process.stdout.write(s + "\n");
 const err = (s) => process.stderr.write(s + "\n");
 const exit = (code) => process.exit(code);
@@ -54,7 +56,7 @@ function table(cols, rows) {
 function syncRow(s) {
   return {
     ID: s.id,
-    LOCALPATH: "\\\\?\\" + s.local,
+    LOCALPATH: LONG + s.local,
     REMOTEPATH: s.remote,
     RUN_STATE: s.runState || "Running",
     STATUS: s.status || "Synced",
@@ -171,7 +173,7 @@ function main() {
         const id = state.nextId || "AbCdEfGh123";
         syncs.push({ id, local, remote, runState: "Running", status: "Syncing", error: "NO", size: "0.00  B", files: 0, dirs: 0 });
         save();
-        out(`Added sync: \\\\?\\${local} to ${remote}`);
+        out(`Added sync: ${LONG}${local} to ${remote}`);
         return exit(0);
       }
       if (words.length === 1) {
@@ -183,13 +185,13 @@ function main() {
         if (del) {
           state.syncs = syncs.filter((x) => x !== s);
           save();
-          out(`Sync removed: \\\\?\\${s.local} to ${s.remote}`);
+          out(`Sync removed: ${LONG}${s.local} to ${s.remote}`);
           return exit(0);
         }
         if (pause) s.runState = "Disabled";
         if (enable) s.runState = "Running";
         save();
-        if (pause || enable) out(`Sync ${pause ? "paused" : "enabled"}: \\\\?\\${s.local} to ${s.remote}`);
+        if (pause || enable) out(`Sync ${pause ? "paused" : "enabled"}: ${LONG}${s.local} to ${s.remote}`);
         table(["ID", "LOCALPATH", "REMOTEPATH", "RUN_STATE", "STATUS", "ERROR", "SIZE", "FILES", "DIRS"], [syncRow(s)]);
         return exit(0);
       }

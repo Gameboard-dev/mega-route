@@ -69,7 +69,7 @@ export function rig(o: RigOptions = {}): Rig {
   fs.writeFileSync(statePath, JSON.stringify(o.state ?? { loggedIn: true, email: "someone@example.com", folders: { "/RAG": [] } }));
   if (o.ignore !== undefined) fs.writeFileSync(path.join(vault, ".megaignore"), o.ignore);
   // MEGACMD_DO_NOT_REDACT_LINES is set here on purpose: the runner must take it out before starting MEGAcmd.
-  const env = { ...process.env, MEGACMD_DO_NOT_REDACT_LINES: "1", FAKE_MEGACMD_STATE: statePath, FAKE_MEGACMD_CALLS: callsPath, FAKE_PROCESSES: (o.processes ?? ["MEGAcmdServer.exe"]).join(","), FAKE_PROCESSES_OS: "windows", FAKE_PROCESSES_FAIL: o.processesFail ? "1" : "0" };
+  const env = { ...process.env, MEGACMD_DO_NOT_REDACT_LINES: "1", FAKE_MEGACMD_STATE: statePath, FAKE_MEGACMD_CALLS: callsPath, FAKE_PROCESSES: (o.processes ?? ["MEGAcmdServer.exe"]).join(","), FAKE_PROCESSES_OS: process.platform === "win32" ? "windows" : "posix", FAKE_PROCESSES_FAIL: o.processesFail ? "1" : "0" };
   const events: string[] = [];
   const logs: { level: LogLevel; text: string }[] = [];
   const nodeCp = cp as unknown as ChildProcessApi;
@@ -87,7 +87,7 @@ export function rig(o: RigOptions = {}): Rig {
   };
   const ignorePath = path.join(vault, ".megaignore");
   const cenv: ControllerEnv = {
-    windows: true,
+    windows: process.platform === "win32",
     vaultPath: vault,
     client: o.noClient ? null : tracking,
     clientPath: o.noClient ? null : "C:\\fake\\MegaClient.exe",

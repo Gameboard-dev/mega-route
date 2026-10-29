@@ -154,7 +154,8 @@ test("sync issues: listed with their reason", async () => {
 test("the vault's sync is matched by its folder, whatever the case or \\\\?\\ prefix", async () => {
   const r = rig();
   try {
-    r.setState(withSync(r.vault.toUpperCase()));
+    // Letter case is ignored only on Windows (other systems' folder names are case-sensitive).
+    r.setState(withSync(process.platform === "win32" ? r.vault.toUpperCase() : r.vault));
     const s = await r.controller.refresh(false);
     assert.ok(s.mine);
     r.setState({ loggedIn: true, email: "a@b.org", syncs: [{ id: "Other1", local: path.join(r.dir, "Elsewhere"), remote: "/Other" }] });
