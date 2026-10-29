@@ -1,0 +1,23 @@
+node_modules/
+# main.js is tracked: it is the built plugin, so the repository's files can be copied into a vault as they are.
+# Words the release check must not find (your own names, paths, addresses): never committed.
+.release-scan.local
+*.log
+.DS_Store
+dist-types/
+.env
+.claude/
+
+# Never committed (2026-10-28): secrets and keys, Obsidian's plugin settings (data.json can hold keys and paths),
+# logs, editor and assistant folders, local builds.
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+data.json
+.vscode/
+target/
+Thumbs.db
+__pycache__/
+*.pyc

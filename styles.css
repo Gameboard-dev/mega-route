@@ -1,0 +1,274 @@
+/* MEGA-Route */
+
+.mega-route-hidden {
+  display: none !important;
+}
+
+/* The status dot: green synced, accent working, yellow paused, orange needs attention, red error, grey off. */
+.mega-route-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: var(--size-4-1);
+  vertical-align: middle;
+  background-color: var(--text-faint);
+}
+.mega-route-dot.is-ok {
+  background-color: var(--color-green);
+}
+.mega-route-dot.is-busy {
+  background-color: var(--interactive-accent);
+}
+.mega-route-dot.is-paused {
+  background-color: var(--color-yellow);
+}
+.mega-route-dot.is-attention {
+  background-color: var(--color-orange);
+}
+.mega-route-dot.is-error {
+  background-color: var(--color-red);
+}
+
+.mega-route-status {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The ribbon icon takes the status colour; while transfers run, a thin gauge fills under it. */
+.mega-route-ribbon.is-ok {
+  color: var(--color-green);
+}
+.mega-route-ribbon.is-busy {
+  color: var(--interactive-accent);
+}
+.mega-route-ribbon.is-paused {
+  color: var(--color-yellow);
+}
+.mega-route-ribbon.is-attention {
+  color: var(--color-orange);
+}
+.mega-route-ribbon.is-error {
+  color: var(--color-red);
+}
+/* Two background layers drawn along the icon's foot: the filled part (accent) over the whole track (border colour). */
+.mega-route-ribbon.has-progress {
+  background-image: linear-gradient(var(--interactive-accent), var(--interactive-accent)),
+    linear-gradient(var(--background-modifier-border), var(--background-modifier-border));
+  background-repeat: no-repeat;
+  background-position: calc(50% - 8px) calc(100% - 3px), calc(50% - 8px) calc(100% - 3px);
+  background-size: calc(var(--mega-route-progress, 0) * 16px) 2px, 16px 2px;
+}
+
+/* Settings */
+.mega-route-problem {
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
+  white-space: pre-wrap;
+}
+.mega-route-pre {
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  background: var(--background-secondary);
+  border-radius: var(--radius-s);
+  padding: var(--size-4-2);
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+  max-height: 16em;
+  overflow: auto;
+}
+
+/* The old plain-text password warning, at the top of the settings */
+/* The settings tab's contents (scoped to this plugin's tab): a column of links to the left of the settings that
+   stays in view as they scroll, where the window is wide enough; above the settings, in a line, where it is not.
+   The same layout and values as the author's other plugins' tabs. */
+.mega-route-settings .mega-route-contents { margin-bottom: var(--size-4-4); font-size: var(--font-ui-small); }
+.mega-route-settings .mega-route-contents-title { font-weight: var(--font-semibold); margin-bottom: var(--size-2-2); }
+@media (min-width: 1000px) {
+  body:not(.is-mobile) .mega-route-settings.mega-route-contents-layout {
+    display: grid;
+    grid-template-columns: 11rem minmax(0, 1fr);
+    gap: 0 var(--size-4-6); /* not column-gap: the directory's CSS lint reads it as multi-column layout */
+    align-items: start;
+    grid-auto-rows: max-content; /* a scrolling box keeps its height (the tab has a fixed height) */
+  }
+  body:not(.is-mobile) .mega-route-settings.mega-route-contents-layout > * { grid-column: 2; }
+  body:not(.is-mobile) .mega-route-settings.mega-route-contents-layout > .mega-route-contents {
+    grid-column: 1;
+    grid-row: 1 / span 999;
+    position: sticky;
+    top: 0;
+    max-height: calc(100vh - 12rem);
+    overflow-y: auto;
+    margin-bottom: 0;
+    padding-right: var(--size-4-2);
+    border-right: 1px solid var(--background-modifier-border);
+  }
+  body:not(.is-mobile) .mega-route-settings.mega-route-contents-layout .mega-route-contents-links a {
+    display: block;
+    padding: var(--size-2-1) 0;
+  }
+  body:not(.is-mobile) .mega-route-settings.mega-route-contents-layout .mega-route-contents-sep { display: none; }
+}
+
+/* Greyed-out rows (MEGAcmd missing or not running): the reason shows on hover and under the row. */
+.mega-route-disabled .setting-item-control {
+  opacity: 0.5;
+}
+
+/* The sign-in form */
+.mega-route-signin-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-4-2);
+  justify-content: flex-end;
+}
+.mega-route-input {
+  min-width: 12em;
+}
+.mega-route-input.mega-route-code {
+  min-width: 9em;
+  width: 9em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+}
+.mega-route-signin .setting-item-control {
+  gap: var(--size-4-2);
+}
+/* The action running (with a spinner) or the last one's result, in the sign-in section. */
+.mega-route-settings .mega-route-op {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2) var(--size-4-3);
+  margin: var(--size-4-2) 0;
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+  font-size: var(--font-ui-small);
+}
+.mega-route-settings .mega-route-op.is-ok {
+  border-left: 3px solid var(--color-green);
+}
+.mega-route-settings .mega-route-op.is-error {
+  border-left: 3px solid var(--color-red);
+}
+.mega-route-settings .mega-route-op.is-running {
+  border-left: 3px solid var(--interactive-accent);
+}
+.mega-route-settings .mega-route-spinner {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--background-modifier-border);
+  border-top-color: var(--interactive-accent);
+  animation: mega-route-spin 0.9s linear infinite;
+}
+@keyframes mega-route-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mega-route-settings .mega-route-spinner {
+    animation-duration: 3s;
+  }
+}
+
+/* MEGAcmd is waiting for the one-time code: the same field, highlighted. */
+.mega-route-attention {
+  border-left: 3px solid var(--interactive-accent);
+  padding-left: var(--size-4-3);
+}
+.mega-route-attention .setting-item-description {
+  color: var(--text-normal);
+}
+.mega-route-attention .mega-route-code {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}
+
+/* The live log pane */
+.mega-route-logpane {
+  margin-top: var(--size-4-2);
+}
+.mega-route-logbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--size-4-2);
+  margin-bottom: var(--size-4-2);
+}
+.mega-route-logauto {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-4-1);
+}
+.mega-route-log {
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.45;
+  height: 22em;
+  overflow: auto;
+  resize: vertical;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: var(--size-4-1) var(--size-4-2);
+  user-select: text;
+}
+/* "Wrap lines" on: long paths and handles with no spaces wrap too. Off: lines stay whole and the pane scrolls
+   sideways as well as down. */
+.mega-route-settings .mega-route-log.is-wrap .mega-route-logline {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.mega-route-settings .mega-route-log.is-nowrap {
+  overflow-x: auto;
+}
+.mega-route-settings .mega-route-log.is-nowrap .mega-route-logline {
+  white-space: pre;
+  width: max-content;
+  min-width: 100%;
+}
+.mega-route-logline.is-megacmd {
+  color: var(--text-muted);
+}
+.mega-route-logline.is-warn {
+  color: var(--color-orange);
+}
+.mega-route-logline.is-error {
+  color: var(--text-error);
+}
+.mega-route-logline.is-debug {
+  color: var(--text-faint);
+}
+.mega-route-logempty {
+  color: var(--text-faint);
+  font-style: italic;
+}
+.mega-route-logsource {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  margin-top: var(--size-4-1);
+  word-break: break-all;
+}
+
+/* Dialogs */
+.mega-route-plan th {
+  text-align: left;
+  vertical-align: top;
+  padding-right: var(--size-4-3);
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-weight: var(--font-normal);
+}
+.mega-route-plan td {
+  word-break: break-all;
+}
+.mega-route-blockers li {
+  color: var(--text-error);
+}
