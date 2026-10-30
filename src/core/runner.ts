@@ -142,10 +142,10 @@ export class ProcessRunner implements Runner {
       const finish = (r: Omit<RunResult, "ms" | "stdout" | "stderr">) => {
         if (done) return;
         done = true;
-        clearTimeout(timer);
+        window.clearTimeout(timer);
         resolve({ ...r, stdout, stderr, ms: Date.now() - started });
       };
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         timedOut = true;
         try {
           child?.kill();

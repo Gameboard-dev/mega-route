@@ -68,6 +68,15 @@ for (const f of files) {
   for (const t of terms) if (text.toLowerCase().includes(t.toLowerCase())) fail.push(`${f} holds a word from the scan list (${t.length} characters)`);
 }
 
+// Obsidian's review rules (eslint-plugin-obsidianmd, eslint.config.mjs): no error and no warning.
+{
+  const { ESLint } = await import("eslint");
+  const results = await new ESLint({ cwd: root }).lintFiles(["src"]);
+  for (const r of results) {
+    for (const m of r.messages) fail.push(`lint: ${path.relative(root, r.filePath)}:${m.line}:${m.column} ${m.message} (${m.ruleId ?? "parse"})`);
+  }
+}
+
 if (fail.length) {
   console.error("release-check: NOT ready\n- " + fail.join("\n- "));
   process.exit(1);

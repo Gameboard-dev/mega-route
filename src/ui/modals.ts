@@ -2,6 +2,7 @@
 
 import { App, Modal, Setting } from "obsidian";
 import type { CreatePlan } from "../core/controller.ts";
+import { destructive } from "./buttons.ts";
 
 class Confirm extends Modal {
   private done = false;
@@ -28,7 +29,7 @@ class Confirm extends Modal {
       .addButton((b) => b.setButtonText("Cancel").onClick(() => this.finish(false)))
       .addButton((b) => {
         b.setButtonText(this.yes).onClick(() => this.finish(true));
-        if (this.risky) b.setWarning();
+        if (this.risky) destructive(b, true);
         else b.setCta();
       });
   }
@@ -84,7 +85,7 @@ export function confirmCreate(app: App, plan: CreatePlan): Promise<"create" | "m
         }
         if (plan.ok) {
           c.createEl("p", {
-            text: "Deleted files are not lost at once: MEGA keeps those deleted in the vault in its Rubbish Bin (SyncDebris), and those deleted on MEGA in a hidden debris folder at the vault's top.",
+            text: "Deleted files are not lost at once: MEGA keeps those deleted in the vault in its rubbish bin (SyncDebris), and those deleted on MEGA in a hidden debris folder at the vault's top.",
           });
           const d = c.createEl("details");
           d.createEl("summary", { text: "The .megaignore file that will be written first" });

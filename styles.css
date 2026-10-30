@@ -1,5 +1,12 @@
 /* MEGA-Route */
 
+/* A settings row that holds a panel of rows of its own (MEGAcmd's state, sign-in, the sync, the block, the log). */
+.mega-route-settings .setting-item.mega-route-panel {
+  display: block;
+  padding: 0;
+  border-top: none;
+}
+
 /* The status dot: green synced, accent working, yellow paused, orange needs attention, red error, grey off. */
 .mega-route-dot {
   display: inline-block;

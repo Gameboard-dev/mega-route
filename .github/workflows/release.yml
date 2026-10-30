@@ -34,10 +34,11 @@ jobs:
       - name: Dependencies (build tools only; the plugin has none at run time)
         run: npm ci
 
-      - name: Types, build, tests
+      - name: Types, Obsidian's lint rules, build, tests
         run: |
           set -eu
           npm run typecheck
+          npm run lint
           npm run build
           npm test
 

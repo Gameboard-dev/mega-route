@@ -45,7 +45,8 @@ test("Obsidian's review rules: no browser storage, no !important or :has in the 
     const rel = path.relative(root, f);
     assert.doesNotMatch(text, /\b(localStorage|sessionStorage)\b/, `${rel}: use App.loadLocalStorage / saveLocalStorage`);
     assert.doesNotMatch(text, /navigator\.clipboard\.read/, `${rel} reads the clipboard`);
-    if (!rel.endsWith("node.ts")) assert.doesNotMatch(text, /require\(\s*["'](node:)?fs["']\)|from\s+["'](node:)?fs(\/promises)?["']/, `${rel} loads fs outside node.ts`);
+    if (!rel.endsWith("node.ts")) assert.doesNotMatch(text, /require\(\s*["'](node:)?fs["']\)|from\s+["'](node:)?fs(\/promises)?["']|import\(\s*["'](node:)?(fs|child_process)/, `${rel} loads fs or child_process outside node.ts`);
+    assert.doesNotMatch(text, /\brequire\(/, `${rel}: Node's modules are loaded with import() in node.ts`);
   }
   const main = path.join(root, "main.js");
   if (fs.existsSync(main)) {

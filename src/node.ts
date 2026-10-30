@@ -10,6 +10,7 @@
 //   - fs, in the vault: `wfs` writes `.megaignore` in place (core/fsio.ts), because MEGA marks it hidden and the
 //     adapter's write cannot replace a hidden file on Windows.
 
+import { Platform } from "obsidian";
 import type { ChildProcessApi } from "./core/runner.ts";
 import type { WriteFs } from "./core/fsio.ts";
 
@@ -27,14 +28,23 @@ export interface NodeApis {
   env: Record<string, string | undefined>;
 }
 
-export function loadNode(): NodeApis | null {
+/**
+ * Loads Node's modules with dynamic imports, only on the desktop (Obsidian's guard for Node built-ins); esbuild keeps
+ * them external, so Obsidian's Electron provides them. Null on phones and tablets, or if they cannot be loaded.
+ */
+export async function loadNode(): Promise<NodeApis | null> {
+  if (!Platform.isDesktop) return null;
+  if (!Platform.isDesktopApp) return null;
   try {
-    const cp = require("child_process") as ChildProcessApi;
-    const fs = require("fs") as { promises: NodeApis["fsp"] };
-    const os = require("os") as NodeApis["os"];
-    const proc = require("process") as { env: Record<string, string | undefined> };
-    const path = require("path") as NodeApis["path"];
-    return { cp, fsp: fs.promises, wfs: fs.promises as unknown as WriteFs, path, os, env: proc.env };
+    const [cp, fs, os, proc, path] = await Promise.all([import("child_process"), import("fs"), import("os"), import("process"), import("path")]);
+    return {
+      cp: cp as unknown as ChildProcessApi,
+      fsp: fs.promises as unknown as NodeApis["fsp"],
+      wfs: fs.promises as unknown as WriteFs,
+      path,
+      os,
+      env: proc.env,
+    };
   } catch {
     return null;
   }

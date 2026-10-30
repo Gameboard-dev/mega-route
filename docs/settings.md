@@ -6,6 +6,9 @@ Settings → MEGA-Route, from top to bottom. Settings marked **(this device)** a
 this vault on this computer, never in the vault, so other devices that sync the vault neither see nor change them. All
 others are in the plugin's `data.json` and are shared by every device that syncs the vault.
 
+In Obsidian 1.13 and later every row, the live panels included, is found by Obsidian's settings search (the tab uses
+Obsidian's declarative settings); earlier versions show the same rows without search.
+
 - [MEGAcmd](#megacmd)
 - [The sync](#the-sync)
 - [Exclusions](#exclusions)
@@ -38,7 +41,7 @@ settings open.
 
 | Setting | What it does | Default |
 |---|---|---|
-| MEGAcmd's folder (this device) | MEGAcmd's folder, or its client program (`MegaClient.exe` on Windows, `mega-exec` on macOS and Linux). Empty: the usual place. **Check** looks again. Must lead to MEGAcmd's client, an existing file, outside the vault. | empty |
+| MEGAcmd's folder (this device) | MEGAcmd's folder, or its client program (`MegaClient.exe` on Windows, `mega-exec` on macOS and Linux). Empty: the usual place. **Check for MEGAcmd → Check**, the row below it, looks again. Must lead to MEGAcmd's client, an existing file, outside the vault. | empty |
 | Start MEGAcmd with Obsidian (this device) | When Obsidian starts, start MEGAcmd's server if it is not running, which resumes MEGAcmd's syncs. Off: MEGAcmd runs only when you start it. | off |
 | Status checks while idle (this device) | Seconds between status checks while the sync is idle and Obsidian has the focus, 10 to 600. While the sync works the plugin checks every 5 s; while Obsidian is in the background and the sync is idle, not at all. | 30 |
 
@@ -46,7 +49,7 @@ settings open.
 
 | Setting | What it does | Default |
 |---|---|---|
-| MEGA folder | The MEGA folder the vault syncs with, from the top of the Cloud Drive (`/RAG`, `/Notes/My vault`). Used when the sync is created. A wrong value is explained under the field. | `/` + the vault's name |
+| MEGA folder | The MEGA folder the vault syncs with, from the top of the Cloud Drive (`/RAG`, `/Notes/My vault`). Used when the sync is created. A wrong value is explained under the field and not saved. | `/` + the vault's name |
 
 Below it: the vault's sync (its id, folders, state, status, and what MEGA holds) with **Pause** / **Resume** and
 **Remove…**, or, with no sync yet, **Check and create…**. MEGAcmd's other syncs on the computer are listed for

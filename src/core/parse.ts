@@ -78,8 +78,13 @@ export function maskEmail(email: string): string {
   return `${local[0]}***@${name[0] ?? ""}***${tld}`;
 }
 
-export type RunState = "Pending" | "Loading" | "Running" | "Suspended" | "Disabled" | string;
-export type SyncStatus = "NONE" | "Synced" | "Pending" | "Syncing" | "Processing" | string;
+/**
+ * MEGAcmd's RUN_STATE column as it is written: Pending, Loading, Running, Suspended or Disabled in the versions known.
+ * Any other text is kept as it is (a newer MEGAcmd may add states), so the type is plain text.
+ */
+export type RunState = string;
+/** MEGAcmd's STATUS column as it is written: NONE, Synced, Pending, Syncing or Processing in the versions known. */
+export type SyncStatus = string;
 
 export interface SyncRow {
   id: string;

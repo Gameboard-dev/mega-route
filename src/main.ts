@@ -64,7 +64,7 @@ export default class MegaRoutePlugin extends Plugin {
       this.addSettingTab(new MobileSettingTab(this.app, this));
       return;
     }
-    this.node = loadNode();
+    this.node = await loadNode();
     await this.loadSettings();
     this.device = readDevice(this.app.loadLocalStorage(DEVICE_KEY));
     if (!this.node) {
@@ -144,7 +144,8 @@ export default class MegaRoutePlugin extends Plugin {
   // ---------------------------------------------------------------- settings
 
   async loadSettings(): Promise<void> {
-    const raw = await this.loadData();
+    // data.json as Obsidian read it: anything at all until migrate() has checked it.
+    const raw: unknown = await this.loadData();
     const m = migrate(raw, this.app.vault.getName());
     this.settings = m.settings;
     this.data = m.data;
@@ -314,7 +315,7 @@ export default class MegaRoutePlugin extends Plugin {
     if (acc === true) this.signedOutSaid = false;
     else if (acc === false && this.state.server === "running" && !this.signedOutSaid && !this.state.operation) {
       this.signedOutSaid = true;
-      new Notice("MEGA-Route is signed out of MEGA, so nothing syncs. Sign in again in its settings (Settings → MEGA-Route → Sign in to MEGA).", 15000);
+      new Notice("MEGA-Route is signed out of MEGA, so nothing syncs. Sign in again in MEGA-Route's settings.", 15000);
       this.say("warn", "MEGAcmd is not signed in to MEGA: no sync runs until you sign in again in the settings.");
     }
     this.reconcileOperation();
@@ -434,10 +435,10 @@ export default class MegaRoutePlugin extends Plugin {
       (el) => {
         el.createEl("p", { text: "MEGA-Route will, in this order, and stop at the first step that fails:" });
         const ol = el.createEl("ol");
-        ol.createEl("li", { text: "pause the sync of this vault: its transfers stop, and an upload that has not finished is not created on MEGA;" });
-        ol.createEl("li", { text: "stop any other transfer in progress (nothing in the vault changes);" });
-        ol.createEl("li", { text: "sign MEGAcmd out: MEGA ends the session, and MEGAcmd deletes its saved session and its sync of this vault." });
-        el.createEl("p", { text: "Your files stay as they are, in the vault and on MEGA. To sync again, sign in (your password, and the one-time code if two-factor authentication is on), then press Check and create… to set the sync up again." });
+        ol.createEl("li", { text: "Pause the sync of this vault: its transfers stop, and an upload that has not finished is not created on MEGA." });
+        ol.createEl("li", { text: "Stop any other transfer in progress (nothing in the vault changes)." });
+        ol.createEl("li", { text: "Sign MEGAcmd out: MEGA ends the session, and MEGAcmd deletes its saved session and its sync of this vault." });
+        el.createEl("p", { text: "Your files stay as they are, in the vault and on MEGA. To sync again, sign in (your password, and the one-time code if two-factor authentication is on), then create the sync again in the settings." });
       },
       "Sign out",
       true,
@@ -594,14 +595,14 @@ export default class MegaRoutePlugin extends Plugin {
   }
 
   /** Follows MEGAcmd's log file into the log, every second, until stopped (the settings tab's log pane). */
-  followMegaCmdLog(): { where: string; stop(): void } {
+  followMegaCmdLog(): { where: string; stop: () => void } {
     const node = this.node;
     const path = this.paths?.log;
     if (!node || !path) return { where: "unknown (MEGAcmd was not found)", stop: () => undefined };
     const tail = new LogTail(node.fsp, path);
     let missingSaid = false;
     let running = false;
-    const id = window.setInterval(async () => {
+    const poll = async () => {
       if (running) return;
       running = true;
       try {
@@ -619,7 +620,9 @@ export default class MegaRoutePlugin extends Plugin {
       } finally {
         running = false;
       }
-    }, 1000);
+    };
+    // poll() catches its own errors (said in the log); the interval only starts it.
+    const id = window.setInterval(() => void poll(), 1000);
     return { where: path, stop: () => window.clearInterval(id) };
   }
 
@@ -628,14 +631,12 @@ export default class MegaRoutePlugin extends Plugin {
   exclusionsChanged(): void {
     this.countDirty = true;
     if (this.ignoreTimer !== null) window.clearTimeout(this.ignoreTimer);
-    this.ignoreTimer = window.setTimeout(async () => {
+    this.ignoreTimer = window.setTimeout(() => {
       this.ignoreTimer = null;
       if (!this.controller || !this.state.mine) return;
-      try {
-        await this.controller.writeIgnore(this.ignoreOptions());
-      } catch (e) {
+      this.controller.writeIgnore(this.ignoreOptions()).catch((e: unknown) => {
         this.say("error", `Could not write .megaignore: ${e instanceof Error ? e.message : String(e)}`);
-      }
+      });
     }, 1500);
   }
 

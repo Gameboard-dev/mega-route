@@ -1,8 +1,10 @@
 /* MEGA-Route, an Obsidian plugin (MIT licence). Built with esbuild from the TypeScript in src/: https://github.com/Gameboard-dev/mega-route */
 "use strict";
+var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
   for (var name2 in all)
@@ -16,6 +18,14 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/main.ts
@@ -24,7 +34,7 @@ __export(main_exports, {
   default: () => MegaRoutePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian4 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 
 // src/core/parse.ts
 var COL_SEP = "~|~";
@@ -365,7 +375,7 @@ function globToEre(p) {
   }
   return out;
 }
-function mapPattern(raw, cls, configDir = ".obsidian") {
+function mapPattern(raw, cls, configDir) {
   const pattern = raw.trim();
   if (CONTROL2.test(raw.replace(/\r?\n$/, ""))) return { pattern, reason: "contains a control character" };
   if (pattern.length > 512) return { pattern: pattern.slice(0, 80) + "\u2026", reason: "is longer than 512 characters" };
@@ -385,7 +395,8 @@ function mapPattern(raw, cls, configDir = ".obsidian") {
   return { pattern, rule: `${cls}pr:${globToEre(p)}` };
 }
 function buildBlock(o) {
-  const configDir = clean(o.configDir) || ".obsidian";
+  const configDir = clean(o.configDir);
+  if (!configDir) throw new Error("Obsidian's configuration folder is not known, so no rules were made.");
   const pluginDir = clean(o.pluginDir) || `${configDir}/plugins/mega-route`;
   const legacyDir = `${configDir}/plugins/mega-sync-fork`;
   const mapped = [];
@@ -1200,7 +1211,7 @@ ${r.stdout}`;
             const left = live ? `${live.length} transfer(s) are still ${[...new Set(live.map((x) => x.state.toLowerCase()))].join(" or ")}` : "MEGAcmd's list of transfers could not be read";
             return fail(2, "stopping other transfers", `${left} after ${Math.round(SIGN_OUT_QUEUE_MS / 1e3)} s.`, `${paused}; MEGAcmd is still signed in. Sign out again in a moment, or resume the sync.`);
           }
-          await new Promise((res) => setTimeout(res, 250));
+          await new Promise((res) => window.setTimeout(res, 250));
         }
         this.env.log("info", `Sign-out 2/${STEPS}: other transfers cancelled.`);
       } else {
@@ -1440,7 +1451,7 @@ function processLister(p) {
 async function checkClientPath(p, input, vaultPath, stat) {
   let path = input.trim();
   if (!path) return { ok: false, reason: "No path is set for MEGAcmd." };
-  if (/[\u0000-\u001f"]/.test(path)) return { ok: false, reason: "The path contains a control character or a quotation mark." };
+  if ([...path].some((ch) => ch.charCodeAt(0) < 32 || ch === '"')) return { ok: false, reason: "The path contains a control character or a quotation mark." };
   const absolute = p.os === "windows" ? /^[A-Za-z]:\\/.test(path) : path.startsWith("/");
   if (!absolute) return { ok: false, reason: `Not an absolute path: ${path}` };
   try {
@@ -1527,10 +1538,10 @@ var ProcessRunner = class {
       const finish = (r) => {
         if (done) return;
         done = true;
-        clearTimeout(timer);
+        window.clearTimeout(timer);
         resolve({ ...r, stdout, stderr, ms: Date.now() - started });
       };
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         timedOut = true;
         try {
           child?.kill();
@@ -1791,7 +1802,7 @@ async function readVaultText(adapter, path) {
 var SETTINGS_VERSION = 3;
 var DEFAULT_EXCLUDES = [".git/**", "node_modules/**"].join("\n");
 function defaultSettings(vaultName) {
-  const name2 = vaultName.replace(/[\u0000-\u001f"\\/]/g, "").trim() || "Obsidian";
+  const name2 = [...vaultName].filter((ch) => ch.charCodeAt(0) >= 32 && !'"\\/'.includes(ch)).join("").trim() || "Obsidian";
   return {
     settingsVersion: SETTINGS_VERSION,
     remoteFolder: `/${name2}`,
@@ -1854,7 +1865,8 @@ function migrate(raw, vaultName) {
     if (typeof src.showRibbon === "boolean") settings.showRibbon = src.showRibbon;
     notes.push("Carried over from 2.x: the exclude and include patterns, syncing the configuration folder, the status bar and ribbon switches.");
     for (const k of ["ignorePathsRegex", "onlyAllowPathsRegex"]) {
-      if (typeof src[k] === "string" && src[k].trim()) notes.push(`Not carried over: ${k} (JavaScript regular expressions have no exact MEGA equivalent); add MEGA rules to .megaignore by hand if needed.`);
+      const v = src[k];
+      if (typeof v === "string" && v.trim()) notes.push(`Not carried over: ${k} (JavaScript regular expressions have no exact MEGA equivalent); add MEGA rules to .megaignore by hand if needed.`);
     }
   }
   return { data: { ...settings }, settings, migrated: isLegacy, credentialsRemoved: removed, dropped: isLegacy ? src : null, notes };
@@ -1866,22 +1878,42 @@ function readDevice(raw) {
 }
 
 // src/node.ts
-function loadNode() {
+var import_obsidian = require("obsidian");
+async function loadNode() {
+  if (!import_obsidian.Platform.isDesktop) return null;
+  if (!import_obsidian.Platform.isDesktopApp) return null;
   try {
-    const cp = require("child_process");
-    const fs = require("fs");
-    const os = require("os");
-    const proc = require("process");
-    const path = require("path");
-    return { cp, fsp: fs.promises, wfs: fs.promises, path, os, env: proc.env };
+    const [cp, fs, os, proc, path] = await Promise.all([Promise.resolve().then(() => __toESM(require("child_process"), 1)), Promise.resolve().then(() => __toESM(require("fs"), 1)), Promise.resolve().then(() => __toESM(require("os"), 1)), Promise.resolve().then(() => __toESM(require("process"), 1)), Promise.resolve().then(() => __toESM(require("path"), 1))]);
+    return {
+      cp,
+      fsp: fs.promises,
+      wfs: fs.promises,
+      path,
+      os,
+      env: proc.env
+    };
   } catch {
     return null;
   }
 }
 
 // src/ui/modals.ts
-var import_obsidian = require("obsidian");
-var Confirm = class extends import_obsidian.Modal {
+var import_obsidian3 = require("obsidian");
+
+// src/ui/buttons.ts
+var import_obsidian2 = require("obsidian");
+function destructive(b, primary = false) {
+  if ((0, import_obsidian2.requireApiVersion)("1.13.0")) {
+    b.setDestructive();
+    if (primary) b.setCta();
+  } else {
+    b.buttonEl.addClass("mod-warning");
+  }
+  return b;
+}
+
+// src/ui/modals.ts
+var Confirm = class extends import_obsidian3.Modal {
   constructor(app, heading, body, yes, risky, resolve) {
     super(app);
     this.done = false;
@@ -1895,9 +1927,9 @@ var Confirm = class extends import_obsidian.Modal {
     this.titleEl.setText(this.heading);
     this.modalEl.addClass("mega-route-modal");
     this.body(this.contentEl);
-    new import_obsidian.Setting(this.contentEl).addButton((b) => b.setButtonText("Cancel").onClick(() => this.finish(false))).addButton((b) => {
+    new import_obsidian3.Setting(this.contentEl).addButton((b) => b.setButtonText("Cancel").onClick(() => this.finish(false))).addButton((b) => {
       b.setButtonText(this.yes).onClick(() => this.finish(true));
-      if (this.risky) b.setWarning();
+      if (this.risky) destructive(b, true);
       else b.setCta();
     });
   }
@@ -1921,7 +1953,7 @@ function confirm(app, heading, body, yes, risky = false) {
 function confirmCreate(app, plan) {
   return new Promise((resolve) => {
     let answered = false;
-    const m = new class extends import_obsidian.Modal {
+    const m = new class extends import_obsidian3.Modal {
       onOpen() {
         this.titleEl.setText(plan.ok ? "Create the sync?" : "The sync cannot be created yet");
         this.modalEl.addClass("mega-route-modal");
@@ -1948,13 +1980,13 @@ function confirmCreate(app, plan) {
         }
         if (plan.ok) {
           c.createEl("p", {
-            text: "Deleted files are not lost at once: MEGA keeps those deleted in the vault in its Rubbish Bin (SyncDebris), and those deleted on MEGA in a hidden debris folder at the vault's top."
+            text: "Deleted files are not lost at once: MEGA keeps those deleted in the vault in its rubbish bin (SyncDebris), and those deleted on MEGA in a hidden debris folder at the vault's top."
           });
           const d = c.createEl("details");
           d.createEl("summary", { text: "The .megaignore file that will be written first" });
           d.createEl("pre", { cls: "mega-route-pre", text: plan.ignoreText });
         }
-        const s = new import_obsidian.Setting(c);
+        const s = new import_obsidian3.Setting(c);
         s.addButton((b) => b.setButtonText("Cancel").onClick(() => this.answer("cancel")));
         const missing = plan.blockers.some((x) => x.includes("does not exist on MEGA"));
         if (missing && plan.blockers.length === 1) {
@@ -1981,10 +2013,10 @@ function confirmCreate(app, plan) {
 }
 
 // src/ui/settingsTab.ts
-var import_obsidian3 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 
 // src/ui/logPane.ts
-var import_obsidian2 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 var MAX_DOM_LINES = 2e3;
 var LogPane = class {
   constructor(host) {
@@ -2017,19 +2049,19 @@ var LogPane = class {
     for (const [value, label] of options) select.createEl("option", { value, text: label });
     select.value = this.host.settings.logFilter;
     select.setAttr("aria-label", "Lines to show");
-    select.addEventListener("change", async () => {
+    select.addEventListener("change", () => {
       this.host.settings.logFilter = select.value;
-      await this.host.saveSettings();
       this.renderAll();
+      this.save();
     });
     const auto = bar.createEl("label", { cls: "mega-route-logauto" });
     const cb = auto.createEl("input", { type: "checkbox" });
     cb.checked = this.host.settings.logAutoscroll;
     auto.appendText(" Follow new lines");
-    cb.addEventListener("change", async () => {
+    cb.addEventListener("change", () => {
       this.host.settings.logAutoscroll = cb.checked;
-      await this.host.saveSettings();
       if (cb.checked) this.scrollToEnd();
+      this.save();
     });
     const wrapLabel = bar.createEl("label", { cls: "mega-route-logauto" });
     const wrapBox = wrapLabel.createEl("input", { type: "checkbox" });
@@ -2041,18 +2073,16 @@ var LogPane = class {
       this.scrollToEnd();
     });
     const copy = bar.createEl("button", { cls: "clickable-icon", attr: { "aria-label": "Copy the lines shown" } });
-    (0, import_obsidian2.setIcon)(copy, "copy");
-    copy.addEventListener("click", async () => {
+    (0, import_obsidian4.setIcon)(copy, "copy");
+    copy.addEventListener("click", () => {
       const text = this.host.log.all().filter((l) => this.shows(l)).map((l) => formatLine(l)).join("\n");
-      try {
-        await navigator.clipboard.writeText(text);
-        new import_obsidian2.Notice("MEGA-Route: log copied. Check it for addresses and paths before sharing it.");
-      } catch (e) {
-        new import_obsidian2.Notice(`MEGA-Route: could not copy the log (${e instanceof Error ? e.message : String(e)}).`);
-      }
+      navigator.clipboard.writeText(text).then(
+        () => new import_obsidian4.Notice("MEGA-Route: log copied. Check it for addresses and paths before sharing it."),
+        (e) => new import_obsidian4.Notice(`MEGA-Route: could not copy the log (${e instanceof Error ? e.message : String(e)}).`)
+      );
     });
     const clear = bar.createEl("button", { cls: "clickable-icon", attr: { "aria-label": "Clear the pane (the files are not changed)" } });
-    (0, import_obsidian2.setIcon)(clear, "eraser");
+    (0, import_obsidian4.setIcon)(clear, "eraser");
     clear.addEventListener("click", () => {
       this.host.log.clear();
       this.renderAll();
@@ -2064,6 +2094,10 @@ var LogPane = class {
     wrap.createDiv({ cls: "mega-route-logsource", text: `MEGAcmd's log: ${tail.where}` });
     this.renderAll();
     this.unsubscribe = this.host.log.subscribe((added) => this.append(added));
+  }
+  /** Saves the pane's settings; a failure is said in the console, never thrown into the event handler. */
+  save() {
+    this.host.saveSettings().catch((e) => console.error(`MEGA-Route: could not save the log pane's settings: ${e instanceof Error ? e.message : String(e)}`));
   }
   applyWrap() {
     const c = wrapClasses(this.host.getWrap());
@@ -2108,6 +2142,7 @@ var LINKS = {
   megaignore: "https://help.mega.io/installs-apps/desktop/megaignore",
   docs: "https://github.com/Gameboard-dev/mega-route#readme"
 };
+var MOBILE_TEXT = "MEGA-Route works only in Obsidian's desktop app: it runs MEGA's command-line tool MEGAcmd, which phones and tablets cannot run. Sync this vault on a phone with MEGA's own mobile app instead.";
 function link(el, text, href) {
   el.createEl("a", { text, href, attr: { target: "_blank", rel: "noopener" } });
 }
@@ -2118,199 +2153,338 @@ function greyOut(set, tip) {
   set.settingEl.setAttr("aria-label", tip);
   set.descEl.createDiv({ cls: "mega-route-problem", text: tip });
 }
-var MobileSettingTab = class extends import_obsidian3.PluginSettingTab {
+function panel(s, cls) {
+  const el = s.settingEl;
+  el.empty();
+  el.addClass("mega-route-panel", cls);
+  return el;
+}
+function once(f) {
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    f();
+  };
+}
+var MobileSettingTab = class extends import_obsidian5.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
+  }
+  getSettingDefinitions() {
+    return [{ name: "Desktop only", desc: MOBILE_TEXT }];
   }
   display() {
     this.containerEl.empty();
-    this.containerEl.createEl("p", {
-      text: "MEGA-Route works only in Obsidian's desktop app: it runs MEGA's command-line tool MEGAcmd, which phones and tablets cannot run. Sync this vault on a phone with MEGA's own mobile app instead."
-    });
+    this.containerEl.createEl("p", { text: MOBILE_TEXT });
   }
 };
-var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
+var MegaRouteSettingTab = class extends import_obsidian5.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
-    this.pane = null;
-    this.statusBox = null;
-    this.syncBox = null;
-    this.off = null;
-    this.updateSignIn = () => void 0;
+    /** The clean-ups of the rows drawn (subscriptions, the log pane), run by hide(). */
+    this.cleanups = /* @__PURE__ */ new Set();
+    /** Redraw the .megaignore preview (after the exclusions change). */
+    this.previewListeners = /* @__PURE__ */ new Set();
     this.plugin = plugin;
   }
-  display() {
-    const c = this.containerEl;
-    this.hide();
-    c.empty();
-    c.addClass("mega-route-settings");
-    c.removeClass("mega-route-contents-layout");
+  // ------------------------------------------------------------ the values of the plain settings
+  getControlValue(key) {
     const p = this.plugin;
-    const nav = c.createEl("nav", { cls: "mega-route-contents" });
-    const intro = c.createEl("p", { cls: "setting-item-description" });
-    intro.appendText("MEGA-Route keeps this vault in a two-way sync with a folder on MEGA. The sync itself is run by MEGA's command-line tool MEGAcmd, a separate program you install; this plugin sets it up and shows how it is doing. ");
-    link(intro, "Documentation", LINKS.docs);
-    intro.appendText(".");
-    new import_obsidian3.Setting(c).setName("MEGAcmd").setHeading();
-    this.statusBox = c.createDiv({ cls: "mega-route-statusbox" });
-    this.renderStatus();
-    this.buildSignIn(c);
-    new import_obsidian3.Setting(c).setName("MEGAcmd's folder (this device)").setDesc(`Where MEGAcmd is installed: its folder, or its client program. Leave empty for the usual place (${p.sys ? p.sys.os === "windows" ? "%LOCALAPPDATA%\\MEGAcmd" : p.sys.os === "macos" ? "/Applications/MEGAcmd.app" : "/usr/bin" : "per system"}). Kept on this device only, never in the vault.`).addText(
-      (t) => t.setPlaceholder("default").setValue(p.device.clientPath).onChange((v) => {
-        p.device.clientPath = v.trim();
+    switch (key) {
+      case "clientPath":
+        return p.device.clientPath;
+      case "startServerOnLoad":
+        return p.device.startServerOnLoad;
+      case "idlePollSeconds":
+        return p.device.idlePollSeconds;
+      case "remoteFolder":
+        return p.settings.remoteFolder;
+      case "excludePatterns":
+        return p.settings.excludePatterns;
+      case "includePatterns":
+        return p.settings.includePatterns;
+      case "syncConfigFolder":
+        return p.settings.syncConfigFolder;
+      case "showStatusBar":
+        return p.settings.showStatusBar;
+      case "showRibbon":
+        return p.settings.showRibbon;
+      default:
+        return void 0;
+    }
+  }
+  async setControlValue(key, value) {
+    const p = this.plugin;
+    const text = typeof value === "string" ? value : String(value);
+    const on = value === true;
+    switch (key) {
+      case "clientPath":
+        p.device.clientPath = text.trim();
         p.saveDevice();
-      })
-    ).addButton(
-      (b) => b.setButtonText("Check").onClick(async () => {
-        await p.setupController();
-        await p.refresh(true);
-        new import_obsidian3.Notice(p.state.client.found ? `MEGA-Route: MEGAcmd found at ${p.state.client.path}.` : `MEGA-Route: ${p.state.client.reason ?? "MEGAcmd not found."}`, 8e3);
-        this.display();
-      })
-    );
-    new import_obsidian3.Setting(c).setName("Start MEGAcmd with Obsidian (this device)").setDesc("When Obsidian starts, start MEGAcmd's server if it is not running, which resumes the syncs it has. Off: MEGAcmd runs only when you start it (here, from the menu, or yourself).").addToggle(
-      (t) => t.setValue(p.device.startServerOnLoad).onChange((v) => {
-        p.device.startServerOnLoad = v;
+        return;
+      case "startServerOnLoad":
+        p.device.startServerOnLoad = on;
         p.saveDevice();
-      })
-    );
-    new import_obsidian3.Setting(c).setName("Status checks while idle (this device)").setDesc("Seconds between checks while the sync is idle and Obsidian has the focus (10 to 600). While the sync works: every 5 s. While Obsidian is in the background and the sync is idle: none.").addText(
-      (t) => t.setValue(String(p.device.idlePollSeconds)).onChange((v) => {
-        const n = Number(v);
+        return;
+      case "idlePollSeconds": {
+        const n = Number(value);
         if (Number.isFinite(n)) {
           p.device.idlePollSeconds = Math.min(600, Math.max(10, Math.round(n)));
           p.saveDevice();
         }
-      })
-    );
-    new import_obsidian3.Setting(c).setName("The sync").setHeading();
-    const remote = new import_obsidian3.Setting(c).setName("MEGA folder").setDesc("The folder on MEGA that this vault syncs with, from the top of your Cloud Drive, such as /RAG. Used when the sync is created; changing it later does not move an existing sync.").addText(
-      (t) => t.setValue(p.settings.remoteFolder).onChange(async (v) => {
-        p.settings.remoteFolder = v.trim();
-        await p.saveSettings();
-        const ok = checkRemoteFolder(p.settings.remoteFolder);
-        remote.descEl.toggleClass("mod-warning", !ok.ok);
-        remoteProblem.setText(ok.ok ? "" : ok.reason);
-      })
-    );
-    const remoteProblem = remote.descEl.createDiv({ cls: "mega-route-problem" });
-    const rc = checkRemoteFolder(p.settings.remoteFolder);
-    if (!rc.ok) remoteProblem.setText(rc.reason);
-    this.syncBox = c.createDiv({ cls: "mega-route-syncbox" });
-    this.renderSync();
-    new import_obsidian3.Setting(c).setName("Exclusions").setHeading();
-    const ex = c.createEl("p", { cls: "setting-item-description" });
-    ex.appendText("Written as MEGA's own rules into the file .megaignore at the top of the vault, inside a block marked MEGA-Route; the rest of that file is left as it is. Both MEGAcmd and the MEGA desktop app read it. ");
-    link(ex, "MEGA's rules", LINKS.megaignore);
-    ex.appendText(". Patterns: relative to the vault's top; * for any characters within one name, ** across folders, ? for one character, folder/** for a folder and everything in it.");
-    const preview = c.createEl("pre", { cls: "mega-route-pre" });
-    const problems = c.createDiv({ cls: "mega-route-problem" });
-    const help = c.createDiv({
-      cls: "setting-item-description mega-route-help",
-      text: "A pattern with * or ? becomes a MEGA rule of the form -pr:\u2026 (a regular expression over the whole path), so that * stays within one name as you wrote it."
-    });
-    const showPreview = () => {
-      try {
-        const b = buildBlock(p.ignoreOptions());
-        preview.setText(b.rules.join("\n"));
-        problems.setText(b.problems.map((x) => `Not written: "${x.pattern}" ${x.reason}.`).join("\n"));
-        help.toggle(b.rules.some((r) => /^[-+][a-z]*r:/.test(r)));
-      } catch (e) {
-        problems.setText(e instanceof Error ? e.message : String(e));
+        return;
       }
+      case "remoteFolder":
+        p.settings.remoteFolder = text.trim();
+        await p.saveSettings();
+        return;
+      case "excludePatterns":
+      case "includePatterns":
+      case "syncConfigFolder":
+        if (key === "excludePatterns") p.settings.excludePatterns = text;
+        else if (key === "includePatterns") p.settings.includePatterns = text;
+        else p.settings.syncConfigFolder = on;
+        await p.saveSettings();
+        this.previewListeners.forEach((f) => f());
+        p.exclusionsChanged();
+        return;
+      case "showStatusBar":
+      case "showRibbon":
+        if (key === "showStatusBar") p.settings.showStatusBar = on;
+        else p.settings.showRibbon = on;
+        await p.saveSettings();
+        p.applyVisibility();
+        return;
+    }
+  }
+  // ------------------------------------------------------------ the tab, described once
+  sections() {
+    const p = this.plugin;
+    const usual = p.sys ? p.sys.os === "windows" ? "%LOCALAPPDATA%\\MEGAcmd" : p.sys.os === "macos" ? "/Applications/MEGAcmd.app" : "/usr/bin" : "per system";
+    return [
+      {
+        rows: [
+          {
+            name: "MEGA-Route",
+            desc: "MEGA-Route keeps this vault in a two-way sync with a folder on MEGA. The sync itself is run by MEGA's command-line tool MEGAcmd, a separate program you install; this plugin sets it up and shows how it is doing.",
+            aliases: ["documentation", "help"],
+            render: (s) => {
+              this.containerEl.addClass("mega-route-settings");
+              s.descEl.appendText(" ");
+              link(s.descEl, "Documentation", LINKS.docs);
+              s.descEl.appendText(".");
+              const t = window.setTimeout(() => this.contents(), 0);
+              return () => window.clearTimeout(t);
+            }
+          }
+        ]
+      },
+      {
+        heading: "MEGAcmd",
+        rows: [
+          { name: "MEGAcmd's state", aliases: ["program", "server", "start", "stop", "account", "version", "install", "desktop app"], render: (s) => this.statusPanel(s) },
+          { name: "Sign in to MEGA", aliases: ["login", "email", "password", "two-factor", "one-time code", "sign out", "logout"], render: (s) => this.signInPanel(s) },
+          {
+            name: "MEGAcmd's folder (this device)",
+            desc: `Where MEGAcmd is installed: its folder, or its client program. Leave empty for the usual place (${usual}). Kept on this device only, never in the vault.`,
+            aliases: ["path", "MegaClient", "mega-exec"],
+            control: { type: "text", key: "clientPath", placeholder: "Default" }
+          },
+          {
+            name: "Check for MEGAcmd",
+            desc: "Looks for MEGAcmd at the folder above (or the usual place) and asks it for its state.",
+            render: (s) => {
+              s.addButton(
+                (b) => b.setButtonText("Check").onClick(() => {
+                  void (async () => {
+                    await p.setupController();
+                    await p.refresh(true);
+                    new import_obsidian5.Notice(p.state.client.found ? `MEGA-Route: MEGAcmd found at ${p.state.client.path}.` : `MEGA-Route: ${p.state.client.reason ?? "MEGAcmd not found."}`, 8e3);
+                  })();
+                })
+              );
+              return void 0;
+            }
+          },
+          {
+            name: "Start MEGAcmd with Obsidian (this device)",
+            desc: "When Obsidian starts, start MEGAcmd's server if it is not running, which resumes the syncs it has. Off: MEGAcmd runs only when you start it (here, from the menu, or yourself).",
+            control: { type: "toggle", key: "startServerOnLoad" }
+          },
+          {
+            name: "Status checks while idle (this device)",
+            desc: "Seconds between checks while the sync is idle and Obsidian has the focus (10 to 600). While the sync works: every 5 s. While Obsidian is in the background and the sync is idle: none.",
+            control: { type: "number", key: "idlePollSeconds", min: 10, max: 600 }
+          }
+        ]
+      },
+      {
+        heading: "The sync",
+        rows: [
+          {
+            name: "MEGA folder",
+            desc: "The folder on MEGA that this vault syncs with, from the top of your cloud drive, such as /Notes. Used when the sync is created; changing it later does not move an existing sync.",
+            aliases: ["remote folder", "cloud drive"],
+            control: {
+              type: "text",
+              key: "remoteFolder",
+              validate: (v) => {
+                const r = checkRemoteFolder(v.trim());
+                return r.ok ? void 0 : r.reason;
+              }
+            }
+          },
+          { name: "Sync of this vault", aliases: ["create", "pause", "resume", "remove"], render: (s) => this.syncPanel(s) }
+        ]
+      },
+      {
+        heading: "Exclusions",
+        rows: [
+          {
+            name: "How the exclusions are written",
+            desc: "As MEGA's own rules, into the file .megaignore at the top of the vault, inside a block marked MEGA-Route; the rest of that file is left as it is. Both MEGAcmd and the MEGA desktop app read it. Patterns: relative to the vault's top; * for any characters within one name, ** across folders, ? for one character, folder/** for a folder and everything in it.",
+            aliases: [".megaignore", "ignore", "exclude"],
+            render: (s) => {
+              s.descEl.appendText(" ");
+              link(s.descEl, "MEGA's rules", LINKS.megaignore);
+              s.descEl.appendText(".");
+              return void 0;
+            }
+          },
+          { name: "Leave out", desc: "One pattern per line, such as LaTeX/compiled/*.log or node_modules/**.", control: { type: "textarea", key: "excludePatterns", rows: 6 } },
+          { name: "Sync even so", desc: "Patterns of paths to sync even when a rule above, or in the rest of .megaignore, leaves them out.", control: { type: "textarea", key: "includePatterns", rows: 3 } },
+          {
+            name: "Sync Obsidian's settings folder",
+            desc: `Sync ${this.app.vault.configDir} (settings, plugins, themes) with the vault. MEGA's default rules leave out every name starting with a dot; this brings the folder back. The window layout (workspace files) and this plugin's own folder are always left out.`,
+            control: { type: "toggle", key: "syncConfigFolder" }
+          },
+          { name: "MEGA-Route's block in .megaignore", aliases: ["rules", "write"], render: (s) => this.blockPanel(s) }
+        ]
+      },
+      {
+        heading: "Status bar and ribbon",
+        rows: [
+          { name: "Show in the status bar", control: { type: "toggle", key: "showStatusBar" } },
+          { name: "Show the ribbon icon", control: { type: "toggle", key: "showRibbon" } }
+        ]
+      },
+      {
+        heading: "Logs",
+        rows: [{ name: "Log", aliases: ["log", "MEGAcmd's log", "copy"], render: (s) => this.logPanel(s) }]
+      }
+    ];
+  }
+  /** Obsidian 1.13 and later: the same rows as declarative settings (found by the settings search). */
+  getSettingDefinitions() {
+    return this.sections().map((sec) => ({
+      type: "group",
+      heading: sec.heading,
+      items: sec.rows.map((r) => this.definition(r))
+    }));
+  }
+  definition(r) {
+    const base = { name: r.name, desc: r.desc, aliases: r.aliases };
+    if ("render" in r) {
+      const render = r.render;
+      return { ...base, render: (s) => this.track(render(s)) };
+    }
+    const c = r.control;
+    switch (c.type) {
+      case "text":
+        return { ...base, control: { type: "text", key: c.key, placeholder: c.placeholder, validate: c.validate } };
+      case "textarea":
+        return { ...base, control: { type: "textarea", key: c.key, rows: c.rows } };
+      case "toggle":
+        return { ...base, control: { type: "toggle", key: c.key } };
+      case "number":
+        return { ...base, control: { type: "number", key: c.key, min: c.min, max: c.max, validate: (v) => v >= c.min && v <= c.max ? void 0 : `Between ${c.min} and ${c.max}.` } };
+    }
+  }
+  /** Before Obsidian 1.13: the same rows, drawn with Setting. */
+  display() {
+    const c = this.containerEl;
+    this.hide();
+    c.empty();
+    for (const sec of this.sections()) {
+      if (sec.heading) new import_obsidian5.Setting(c).setName(sec.heading).setHeading();
+      for (const r of sec.rows) {
+        const s = new import_obsidian5.Setting(c).setName(r.name);
+        if (r.desc) s.setDesc(r.desc);
+        if ("render" in r) this.track(r.render(s));
+        else this.drawControl(s, r.control);
+      }
+    }
+  }
+  drawControl(s, c) {
+    const value = this.getControlValue(c.key);
+    const set = (v) => {
+      this.setControlValue(c.key, v).catch((e) => new import_obsidian5.Notice(`MEGA-Route: could not save the setting: ${e instanceof Error ? e.message : String(e)}`));
     };
-    new import_obsidian3.Setting(c).setName("Leave out").setDesc("One pattern per line, e.g. .git/** or LaTeX/compiled/*.log.").addTextArea((t) => {
-      t.inputEl.rows = 6;
-      t.setValue(p.settings.excludePatterns).onChange(async (v) => {
-        p.settings.excludePatterns = v;
-        await p.saveSettings();
-        showPreview();
-        p.exclusionsChanged();
-      });
-    });
-    new import_obsidian3.Setting(c).setName("Sync even so").setDesc("Patterns of paths to sync even when a rule above, or in the rest of .megaignore, leaves them out.").addTextArea((t) => {
-      t.inputEl.rows = 3;
-      t.setValue(p.settings.includePatterns).onChange(async (v) => {
-        p.settings.includePatterns = v;
-        await p.saveSettings();
-        showPreview();
-        p.exclusionsChanged();
-      });
-    });
-    new import_obsidian3.Setting(c).setName("Sync Obsidian's settings folder").setDesc(`Sync ${this.app.vault.configDir} (settings, plugins, themes) with the vault. MEGA's default rules leave out every name starting with a dot; this brings the folder back. The window layout (workspace files) and this plugin's own folder are always left out.`).addToggle(
-      (t) => t.setValue(p.settings.syncConfigFolder).onChange(async (v) => {
-        p.settings.syncConfigFolder = v;
-        await p.saveSettings();
-        showPreview();
-        p.exclusionsChanged();
-      })
-    );
-    new import_obsidian3.Setting(c).setName("MEGA-Route's block in .megaignore").setDesc("The rules below are written when the sync is created, and again whenever these settings change while it exists. The last rule that matches a path decides, so the fixed rules at the end always apply.").addButton(
-      (b) => b.setButtonText("Write to .megaignore now").onClick(async () => {
-        if (!p.controller) return;
-        try {
-          const r = await p.controller.writeIgnore(p.ignoreOptions());
-          new import_obsidian3.Notice(r.written ? "MEGA-Route: .megaignore updated." : "MEGA-Route: .megaignore was already up to date.");
-        } catch (e) {
-          new import_obsidian3.Notice(`MEGA-Route: could not write .megaignore: ${e instanceof Error ? e.message : String(e)}`, 1e4);
-        }
-      })
-    );
-    c.appendChild(preview);
-    c.appendChild(problems);
-    c.appendChild(help);
-    showPreview();
-    new import_obsidian3.Setting(c).setName("Status bar and ribbon").setHeading();
-    new import_obsidian3.Setting(c).setName("Show in the status bar").addToggle(
-      (t) => t.setValue(p.settings.showStatusBar).onChange(async (v) => {
-        p.settings.showStatusBar = v;
-        await p.saveSettings();
-        p.applyVisibility();
-      })
-    );
-    new import_obsidian3.Setting(c).setName("Show the ribbon icon").addToggle(
-      (t) => t.setValue(p.settings.showRibbon).onChange(async (v) => {
-        p.settings.showRibbon = v;
-        await p.saveSettings();
-        p.applyVisibility();
-      })
-    );
-    new import_obsidian3.Setting(c).setName("Logs").setHeading();
-    c.createEl("p", {
-      cls: "setting-item-description",
-      text: "MEGA-Route's own log, and MEGAcmd's server log as it grows, while this tab is open. MEGAcmd's log level is MEGAcmd's own setting (its log command); the pane shows whatever MEGAcmd writes."
-    });
-    this.pane = new LogPane({
-      log: p.log,
-      settings: p.settings,
-      saveSettings: () => p.saveSettings(),
-      followMegaCmdLog: () => p.followMegaCmdLog(),
-      getWrap: () => p.device.logWrap,
-      setWrap: (on) => {
-        p.device.logWrap = on;
-        p.saveDevice();
+    switch (c.type) {
+      case "toggle":
+        s.addToggle((t) => t.setValue(value === true).onChange(set));
+        return;
+      case "textarea":
+        s.addTextArea((t) => {
+          t.inputEl.rows = c.rows;
+          t.setValue(typeof value === "string" ? value : "").onChange(set);
+        });
+        return;
+      case "number":
+        s.addText((t) => t.setValue(String(value)).onChange(set));
+        return;
+      case "text": {
+        const problem = s.descEl.createDiv({ cls: "mega-route-problem" });
+        const check = (v) => {
+          const why = c.validate?.(v);
+          problem.setText(why ?? "");
+          return !why;
+        };
+        s.addText((t) => {
+          if (c.placeholder) t.setPlaceholder(c.placeholder);
+          t.setValue(typeof value === "string" ? value : "").onChange((v) => {
+            if (check(v)) set(v);
+          });
+        });
+        check(typeof value === "string" ? value : "");
+        return;
       }
+    }
+  }
+  track(f) {
+    if (!f) return void 0;
+    const g = once(() => {
+      this.cleanups.delete(g);
+      f();
     });
-    this.pane.mount(c);
-    this.contents(c, nav);
-    this.off = p.onStateChange(() => {
-      this.renderStatus();
-      this.renderSync();
-      this.updateSignIn();
-    });
+    this.cleanups.add(g);
+    return g;
+  }
+  hide() {
+    for (const f of [...this.cleanups]) f();
+    this.cleanups.clear();
+    super.hide();
+  }
+  // ------------------------------------------------------------ MEGAcmd's state
+  statusPanel(s) {
+    const p = this.plugin;
+    const box = panel(s, "mega-route-statusbox");
+    const draw = () => this.renderStatus(box);
+    draw();
+    const off = p.onStateChange(draw);
     void (async () => {
       if (!p.state.client.found) await p.setupController();
       await p.refresh(true);
     })();
+    return off;
   }
-  renderStatus() {
-    const box = this.statusBox;
-    if (!box) return;
+  renderStatus(box) {
     const p = this.plugin;
     const s = p.state;
     box.empty();
     const row = (name2, value, level, fill) => {
-      const set = new import_obsidian3.Setting(box).setName(name2);
+      const set = new import_obsidian5.Setting(box).setName(name2);
       set.descEl.createSpan({ cls: `mega-route-dot is-${level}` });
       set.descEl.appendText(value);
       if (fill) fill(set.controlEl);
@@ -2346,12 +2520,13 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
       s.desktopApp === "running" ? "attention" : "off"
     );
     const shown = describe(s);
-    const now = new import_obsidian3.Setting(box).setName("Now").setDesc(shown.long);
+    const now = new import_obsidian5.Setting(box).setName("Now").setDesc(shown.long);
     now.addExtraButton((b) => b.setIcon("refresh-cw").setTooltip("Refresh").onClick(() => void p.refresh(true)));
     if (s.error) box.createDiv({ cls: "mega-route-problem", text: s.error });
   }
+  // ------------------------------------------------------------ signing in and out
   /**
-   * The sign-in form, built once per display (a status refresh must not wipe what is being typed). The email,
+   * The sign-in form, built once per drawing (a status refresh must not wipe what is being typed). The email,
    * password and one-time code live only in these fields and in the call that passes them to MEGAcmd; the fields are
    * emptied when the attempt ends (the password at once), and nothing is saved.
    *
@@ -2359,17 +2534,17 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
    * MEGAcmd asks for one (written to its input, never on a command line), and simply unused if the account has no
    * two-factor authentication. Left empty, the same field is highlighted and focused when MEGAcmd asks.
    */
-  buildSignIn(parent) {
+  signInPanel(s) {
     const p = this.plugin;
-    const box = parent.createDiv({ cls: "mega-route-signin" });
+    const box = panel(s, "mega-route-signin");
     const opLine = box.createDiv({ cls: "mega-route-op", attr: { role: "status", "aria-live": "polite" } });
-    const form = new import_obsidian3.Setting(box).setName("Sign in to MEGA").setDesc(
+    const form = new import_obsidian5.Setting(box).setName("Sign in to MEGA").setDesc(
       "Your MEGA email and password are passed to MEGAcmd on this computer, which signs in and keeps its own session. The plugin does not store them or send them anywhere else."
     );
     const fields = form.controlEl.createDiv({ cls: "mega-route-signin-fields" });
     const email = fields.createEl("input", { type: "email", cls: "mega-route-input", attr: { placeholder: "Email", autocomplete: "off", spellcheck: "false", "aria-label": "MEGA email" } });
     const password = fields.createEl("input", { type: "password", cls: "mega-route-input", attr: { placeholder: "Password", autocomplete: "off", "aria-label": "MEGA password" } });
-    const codeRow = new import_obsidian3.Setting(box).setName("One-time code (only if two-factor authentication is on)");
+    const codeRow = new import_obsidian5.Setting(box).setName("One-time code (only if two-factor authentication is on)");
     const codeDesc = codeRow.descEl.createDiv({ text: "The six-digit code from your authenticator app. Leave it empty if your account has no two-factor authentication, or type it when MEGAcmd asks." });
     const code = codeRow.controlEl.createEl("input", {
       type: "text",
@@ -2380,11 +2555,11 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
     cancel.hide();
     const button = codeRow.controlEl.createEl("button", { text: "Sign in", cls: "mod-cta" });
     const tip = box.createDiv({ cls: "mega-route-problem" });
-    const outRow = new import_obsidian3.Setting(box).setName("Sign out of MEGA").setDesc("Pauses the sync, cancels transfers in progress, then signs MEGAcmd out, which also removes its sync of this vault. Your files stay as they are.");
+    const outRow = new import_obsidian5.Setting(box).setName("Sign out of MEGA").setDesc("Pauses the sync, cancels transfers in progress, then signs MEGAcmd out, which also removes its sync of this vault. Your files stay as they are.");
     let outButton = null;
     outRow.addButton((b) => {
       outButton = b.buttonEl;
-      b.setButtonText("Sign out\u2026").setWarning().onClick(() => void p.signOut());
+      destructive(b.setButtonText("Sign out\u2026")).onClick(() => void p.signOut());
     });
     let busy = false;
     let pending = null;
@@ -2399,6 +2574,36 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
       button.setText(busy ? "Signing in\u2026" : "Sign in");
       button.disabled = busy;
       f?.(v);
+    };
+    const update = () => {
+      const st = p.state;
+      const op = p.opStatus;
+      opLine.empty();
+      opLine.toggle(!!op);
+      if (op) {
+        opLine.toggleClass("is-running", op.running);
+        opLine.toggleClass("is-ok", !op.running && op.ok === true);
+        opLine.toggleClass("is-error", !op.running && op.ok === false);
+        if (op.running) opLine.createSpan({ cls: "mega-route-spinner", attr: { "aria-hidden": "true" } });
+        opLine.createSpan({ text: op.text });
+      }
+      const ctl = controls(st).signIn;
+      const off2 = !ctl.enabled && !busy;
+      email.disabled = off2 || busy;
+      password.disabled = off2 || busy;
+      code.disabled = off2 || busy && !pending;
+      button.disabled = off2 || busy && !pending;
+      tip.setText(off2 && ctl.tip ? ctl.tip : "");
+      const out = controls(st).signOut;
+      if (outButton) outButton.disabled = !out.enabled || busy;
+      outRow.settingEl.toggleClass("mega-route-disabled", !out.enabled);
+      if (!out.enabled && out.tip) outRow.settingEl.setAttr("aria-label", out.tip);
+      else outRow.settingEl.removeAttribute("aria-label");
+      for (const row of [form.settingEl, codeRow.settingEl]) {
+        if (off2 && ctl.tip) row.setAttr("aria-label", ctl.tip);
+        else row.removeAttribute("aria-label");
+        row.toggleClass("mega-route-disabled", off2);
+      }
     };
     const go = async () => {
       if (busy || button.disabled) return;
@@ -2433,7 +2638,7 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
         password.value = "";
         code.value = "";
         answer(null);
-        this.updateSignIn();
+        update();
       }
     };
     const submit = () => {
@@ -2447,84 +2652,40 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
         if (ev.key === "Enter") submit();
       });
     }
-    this.updateSignIn = () => {
-      const s = p.state;
-      const op = p.opStatus;
-      opLine.empty();
-      opLine.toggle(!!op);
-      if (op) {
-        opLine.toggleClass("is-running", op.running);
-        opLine.toggleClass("is-ok", !op.running && op.ok === true);
-        opLine.toggleClass("is-error", !op.running && op.ok === false);
-        if (op.running) opLine.createSpan({ cls: "mega-route-spinner", attr: { "aria-hidden": "true" } });
-        opLine.createSpan({ text: op.text });
-      }
-      const ctl = controls(s).signIn;
-      const off = !ctl.enabled && !busy;
-      email.disabled = off || busy;
-      password.disabled = off || busy;
-      code.disabled = off || busy && !pending;
-      button.disabled = off || busy && !pending;
-      tip.setText(off && ctl.tip ? ctl.tip : "");
-      const out = controls(s).signOut;
-      if (outButton) outButton.disabled = !out.enabled || busy;
-      outRow.settingEl.toggleClass("mega-route-disabled", !out.enabled);
-      if (!out.enabled && out.tip) outRow.settingEl.setAttr("aria-label", out.tip);
-      else outRow.settingEl.removeAttribute("aria-label");
-      for (const row of [form.settingEl, codeRow.settingEl]) {
-        if (off && ctl.tip) row.setAttr("aria-label", ctl.tip);
-        else row.removeAttribute("aria-label");
-        row.toggleClass("mega-route-disabled", off);
-      }
+    update();
+    const off = p.onStateChange(update);
+    return () => {
+      off();
+      if (pending) answer(null);
     };
-    this.updateSignIn();
   }
-  /**
-   * The tab's contents: a link to every section heading, beside the sections and in view as they scroll where the
-   * window is wide (styles.css), in a line above them where it is not. Filled after the sections are drawn, so every
-   * heading is listed; clicking one scrolls to it. The same layout as the author's other plugins' settings tabs.
-   */
-  contents(el, nav) {
-    if (!nav.isConnected) return;
-    const heads = Array.from(el.querySelectorAll(".setting-item-heading"));
-    if (heads.length < 3) {
-      nav.remove();
-      return;
-    }
-    nav.createDiv({ cls: "mega-route-contents-title", text: "Contents" });
-    const links = nav.createDiv({ cls: "mega-route-contents-links" });
-    heads.forEach((head, i) => {
-      const a = links.createEl("a", { text: head.querySelector(".setting-item-name")?.textContent ?? "", href: "#" });
-      a.addEventListener("click", (e) => {
-        e.preventDefault();
-        head.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-      if (i + 1 < heads.length) links.createSpan({ cls: "mega-route-contents-sep", text: " \xB7 " });
-    });
-    el.addClass("mega-route-contents-layout");
+  // ------------------------------------------------------------ the sync
+  syncPanel(s) {
+    const box = panel(s, "mega-route-syncbox");
+    const draw = () => this.renderSync(box);
+    draw();
+    return this.plugin.onStateChange(draw);
   }
-  renderSync() {
-    const box = this.syncBox;
-    if (!box) return;
+  renderSync(box) {
     const p = this.plugin;
     const s = p.state;
     box.empty();
     const m = s.mine;
     if (m) {
       const shown = describe(s);
-      const set = new import_obsidian3.Setting(box).setName(`Sync ${m.id}`);
+      const set = new import_obsidian5.Setting(box).setName(`Sync ${m.id}`);
       set.descEl.createSpan({ cls: `mega-route-dot is-${shown.level}` });
       set.descEl.appendText(`${m.localPath} \u2194 ${m.remotePath}`);
       set.descEl.createDiv({ text: `State ${m.runState}, status ${m.status}${m.error && m.error !== "NO" ? `, ${m.error}` : ""}. On MEGA: ${m.files ?? "?"} files, ${m.dirs ?? "?"} folders, ${m.size}.` });
       const paused = m.runState === "Disabled" || m.runState === "Suspended";
       if (paused) set.addButton((b) => b.setButtonText("Resume").setCta().onClick(() => void p.change("resume")));
       else set.addButton((b) => b.setButtonText("Pause").onClick(() => void p.change("pause")));
-      set.addButton((b) => b.setButtonText("Remove\u2026").setWarning().onClick(() => void p.change("remove")));
+      set.addButton((b) => destructive(b.setButtonText("Remove\u2026")).onClick(() => void p.change("remove")));
       const ctl = controls(s).change;
       greyOut(set, ctl.enabled ? null : ctl.tip);
     } else {
       const ctl = controls(s).create;
-      const set = new import_obsidian3.Setting(box).setName("No sync of this vault yet").setDesc("Checks MEGAcmd, the MEGA folder and the MEGA desktop app, shows what will happen, and creates the sync only when you confirm.");
+      const set = new import_obsidian5.Setting(box).setName("No sync of this vault yet").setDesc("Checks MEGAcmd, the MEGA folder and the MEGA desktop app, shows what will happen, and creates the sync only when you confirm.");
       set.addButton((b) => {
         b.setButtonText("Check and create\u2026").onClick(() => void p.createSync());
         if (ctl.enabled) b.setCta();
@@ -2536,11 +2697,89 @@ var MegaRouteSettingTab = class extends import_obsidian3.PluginSettingTab {
       box.createDiv({ cls: "setting-item-description", text: `MEGAcmd's other syncs on this computer: ${others.map((r) => `${r.localPath} \u2194 ${r.remotePath} (${r.runState}, ${r.status})`).join("; ")}.` });
     }
   }
-  hide() {
-    this.pane?.unmount();
-    this.pane = null;
-    this.off?.();
-    this.off = null;
+  // ------------------------------------------------------------ the plugin's block in .megaignore
+  blockPanel(s) {
+    const p = this.plugin;
+    const box = panel(s, "mega-route-blockbox");
+    new import_obsidian5.Setting(box).setName("MEGA-Route's block in .megaignore").setDesc("The rules below are written when the sync is created, and again whenever these settings change while it exists. The last rule that matches a path decides, so the fixed rules at the end always apply.").addButton(
+      (b) => b.setButtonText("Write to .megaignore now").onClick(() => {
+        const c = p.controller;
+        if (!c) return;
+        c.writeIgnore(p.ignoreOptions()).then(
+          (r) => new import_obsidian5.Notice(r.written ? "MEGA-Route: .megaignore updated." : "MEGA-Route: .megaignore was already up to date."),
+          (e) => new import_obsidian5.Notice(`MEGA-Route: could not write .megaignore: ${e instanceof Error ? e.message : String(e)}`, 1e4)
+        );
+      })
+    );
+    const preview = box.createEl("pre", { cls: "mega-route-pre" });
+    const problems = box.createDiv({ cls: "mega-route-problem" });
+    const help = box.createDiv({
+      cls: "setting-item-description mega-route-help",
+      text: "A pattern with * or ? becomes a MEGA rule of the form -pr:\u2026 (a regular expression over the whole path), so that * stays within one name as you wrote it."
+    });
+    const show = () => {
+      try {
+        const b = buildBlock(p.ignoreOptions());
+        preview.setText(b.rules.join("\n"));
+        problems.setText(b.problems.map((x) => `Not written: "${x.pattern}" ${x.reason}.`).join("\n"));
+        help.toggle(b.rules.some((r) => /^[-+][a-z]*r:/.test(r)));
+      } catch (e) {
+        problems.setText(e instanceof Error ? e.message : String(e));
+      }
+    };
+    show();
+    this.previewListeners.add(show);
+    return () => this.previewListeners.delete(show);
+  }
+  // ------------------------------------------------------------ logs
+  logPanel(s) {
+    const p = this.plugin;
+    const box = panel(s, "mega-route-logbox");
+    box.createEl("p", {
+      cls: "setting-item-description",
+      text: "MEGA-Route's own log, and MEGAcmd's server log as it grows, while this tab is open. MEGAcmd's log level is MEGAcmd's own setting (its log command); the pane shows whatever MEGAcmd writes."
+    });
+    const pane = new LogPane({
+      log: p.log,
+      settings: p.settings,
+      saveSettings: () => p.saveSettings(),
+      followMegaCmdLog: () => p.followMegaCmdLog(),
+      getWrap: () => p.device.logWrap,
+      setWrap: (on) => {
+        p.device.logWrap = on;
+        p.saveDevice();
+      }
+    });
+    pane.mount(box);
+    return () => pane.unmount();
+  }
+  // ------------------------------------------------------------ the contents column
+  /**
+   * The tab's contents: a link to every section heading, beside the sections and in view as they scroll where the
+   * window is wide (styles.css), in a line above them where it is not. Put in after the rows are drawn, so every
+   * heading is listed; clicking one scrolls to it. The same layout as the author's other plugins' settings tabs.
+   */
+  contents() {
+    const el = this.containerEl;
+    el.querySelector(":scope > .mega-route-contents")?.remove();
+    const heads = Array.from(el.querySelectorAll(".setting-item-heading"));
+    if (heads.length < 3) {
+      el.removeClass("mega-route-contents-layout");
+      return;
+    }
+    const nav = createEl("nav", { cls: "mega-route-contents" });
+    nav.createDiv({ cls: "mega-route-contents-title", text: "Contents" });
+    const links = nav.createDiv({ cls: "mega-route-contents-links" });
+    heads.forEach((head, i) => {
+      const a = links.createEl("a", { text: head.querySelector(".setting-item-name")?.textContent ?? "", href: "#" });
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        head.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      if (i + 1 < heads.length) links.createSpan({ cls: "mega-route-contents-sep", text: " \xB7 " });
+    });
+    el.prepend(nav);
+    el.addClass("mega-route-contents-layout");
   }
 };
 
@@ -2551,7 +2790,7 @@ var BUSY_POLL_MS = 5e3;
 var FULL_REFRESH_MS = 5 * 6e4;
 var COUNT_EVERY_MS = 6e4;
 var OP_KEY = "mega-route-operation";
-var MegaRoutePlugin = class extends import_obsidian4.Plugin {
+var MegaRoutePlugin = class extends import_obsidian6.Plugin {
   constructor() {
     super(...arguments);
     /** data.json as saved: the settings, plus the 2.x sign-in data until the user deletes it. */
@@ -2589,11 +2828,11 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
     this.opStatus = null;
   }
   async onload() {
-    if (!import_obsidian4.Platform.isDesktopApp) {
+    if (!import_obsidian6.Platform.isDesktopApp) {
       this.addSettingTab(new MobileSettingTab(this.app, this));
       return;
     }
-    this.node = loadNode();
+    this.node = await loadNode();
     await this.loadSettings();
     this.device = readDevice(this.app.loadLocalStorage(DEVICE_KEY));
     if (!this.node) {
@@ -2727,7 +2966,7 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
   async setupController() {
     const node = this.node;
     const adapter = this.app.vault.adapter;
-    this.vaultPath = adapter instanceof import_obsidian4.FileSystemAdapter ? adapter.getBasePath() : "";
+    this.vaultPath = adapter instanceof import_obsidian6.FileSystemAdapter ? adapter.getBasePath() : "";
     if (!node) {
       this.controller = null;
       return;
@@ -2809,7 +3048,7 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
     if (acc === true) this.signedOutSaid = false;
     else if (acc === false && this.state.server === "running" && !this.signedOutSaid && !this.state.operation) {
       this.signedOutSaid = true;
-      new import_obsidian4.Notice("MEGA-Route is signed out of MEGA, so nothing syncs. Sign in again in its settings (Settings \u2192 MEGA-Route \u2192 Sign in to MEGA).", 15e3);
+      new import_obsidian6.Notice("MEGA-Route is signed out of MEGA, so nothing syncs. Sign in again in MEGA-Route's settings.", 15e3);
       this.say("warn", "MEGAcmd is not signed in to MEGA: no sync runs until you sign in again in the settings.");
     }
     this.reconcileOperation();
@@ -2894,7 +3133,7 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
   async signOut() {
     if (!this.controller) return;
     if (this.state.operation) {
-      new import_obsidian4.Notice(`MEGA-Route: ${this.state.operation} is in progress: wait for it to finish.`);
+      new import_obsidian6.Notice(`MEGA-Route: ${this.state.operation} is in progress: wait for it to finish.`);
       return;
     }
     const ok = await confirm(
@@ -2903,10 +3142,10 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
       (el) => {
         el.createEl("p", { text: "MEGA-Route will, in this order, and stop at the first step that fails:" });
         const ol = el.createEl("ol");
-        ol.createEl("li", { text: "pause the sync of this vault: its transfers stop, and an upload that has not finished is not created on MEGA;" });
-        ol.createEl("li", { text: "stop any other transfer in progress (nothing in the vault changes);" });
-        ol.createEl("li", { text: "sign MEGAcmd out: MEGA ends the session, and MEGAcmd deletes its saved session and its sync of this vault." });
-        el.createEl("p", { text: "Your files stay as they are, in the vault and on MEGA. To sync again, sign in (your password, and the one-time code if two-factor authentication is on), then press Check and create\u2026 to set the sync up again." });
+        ol.createEl("li", { text: "Pause the sync of this vault: its transfers stop, and an upload that has not finished is not created on MEGA." });
+        ol.createEl("li", { text: "Stop any other transfer in progress (nothing in the vault changes)." });
+        ol.createEl("li", { text: "Sign MEGAcmd out: MEGA ends the session, and MEGAcmd deletes its saved session and its sync of this vault." });
+        el.createEl("p", { text: "Your files stay as they are, in the vault and on MEGA. To sync again, sign in (your password, and the one-time code if two-factor authentication is on), then create the sync again in the settings." });
       },
       "Sign out",
       true
@@ -2919,7 +3158,7 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
     this.tracker.reset();
     this.meter.reset();
     this.local = null;
-    new import_obsidian4.Notice(`MEGA-Route: ${r.message}`, r.ok ? 6e3 : 15e3);
+    new import_obsidian6.Notice(`MEGA-Route: ${r.message}`, r.ok ? 6e3 : 15e3);
     if (r.ok) this.signedOutSaid = true;
     this.setOp(false, r.ok ? "Signed out of MEGA." : r.message, r.ok);
     this.afterRefresh();
@@ -2941,7 +3180,7 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
     if (!this.controller) return;
     if (!this.state.mine) await this.refresh(false);
     if (!this.state.mine) {
-      new import_obsidian4.Notice("MEGA-Route: MEGAcmd has no sync of this vault.");
+      new import_obsidian6.Notice("MEGA-Route: MEGAcmd has no sync of this vault.");
       return;
     }
     if (action === "remove") {
@@ -2959,7 +3198,7 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
       if (!ok) return;
     }
     const r = await this.controller.change(action);
-    new import_obsidian4.Notice(`MEGA-Route: ${r.message}`, r.ok ? 4e3 : 1e4);
+    new import_obsidian6.Notice(`MEGA-Route: ${r.message}`, r.ok ? 4e3 : 1e4);
     if (!r.ok) this.say("error", r.message);
     this.afterRefresh();
   }
@@ -2976,12 +3215,12 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
       if (answer === "cancel") return;
       if (answer === "mkdir") {
         const r2 = await this.controller.makeRemoteFolder(plan.remote);
-        new import_obsidian4.Notice(`MEGA-Route: ${r2.message}`, r2.ok ? 4e3 : 1e4);
+        new import_obsidian6.Notice(`MEGA-Route: ${r2.message}`, r2.ok ? 4e3 : 1e4);
         if (!r2.ok) return;
         continue;
       }
       const r = await this.controller.create(plan, this.ignoreOptions());
-      new import_obsidian4.Notice(`MEGA-Route: ${r.message}`, r.ok ? 6e3 : 12e3);
+      new import_obsidian6.Notice(`MEGA-Route: ${r.message}`, r.ok ? 6e3 : 12e3);
       if (!r.ok) this.say("error", r.message);
       this.afterRefresh();
       return;
@@ -2991,7 +3230,7 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
     if (!this.controller) return;
     const r = await this.controller.startServer();
     this.lastFull = Date.now();
-    new import_obsidian4.Notice(`MEGA-Route: ${r.message}`, r.ok ? 4e3 : 1e4);
+    new import_obsidian6.Notice(`MEGA-Route: ${r.message}`, r.ok ? 4e3 : 1e4);
     this.afterRefresh();
   }
   async stopServer() {
@@ -3005,7 +3244,7 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
     );
     if (!ok) return;
     const r = await this.controller.stopServer();
-    new import_obsidian4.Notice(`MEGA-Route: ${r.message}`, r.ok ? 4e3 : 1e4);
+    new import_obsidian6.Notice(`MEGA-Route: ${r.message}`, r.ok ? 4e3 : 1e4);
     this.afterRefresh();
   }
   /** Signs MEGAcmd in with what was typed in the settings. The values are passed on and dropped; the caller clears
@@ -3014,7 +3253,7 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
     if (!this.controller) return { ok: false, kind: "not-found", message: "MEGAcmd was not found." };
     if (this.state.operation) {
       const message = `${this.state.operation} is in progress: wait for it to finish.`;
-      new import_obsidian4.Notice(`MEGA-Route: ${message}`);
+      new import_obsidian6.Notice(`MEGA-Route: ${message}`);
       return { ok: false, kind: "busy", message };
     }
     const started = Date.now();
@@ -3043,7 +3282,7 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
       });
       this.lastFull = Date.now();
       this.say("info", `Sign-in took ${Date.now() - started} ms.`);
-      new import_obsidian4.Notice(`MEGA-Route: ${r.message}`, r.ok ? 5e3 : 12e3);
+      new import_obsidian6.Notice(`MEGA-Route: ${r.message}`, r.ok ? 5e3 : 12e3);
       window.clearInterval(timer);
       this.setOp(false, r.message, r.ok);
       this.afterRefresh();
@@ -3060,7 +3299,7 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
     const tail = new LogTail(node.fsp, path);
     let missingSaid = false;
     let running = false;
-    const id = window.setInterval(async () => {
+    const poll = async () => {
       if (running) return;
       running = true;
       try {
@@ -3077,7 +3316,8 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
       } finally {
         running = false;
       }
-    }, 1e3);
+    };
+    const id = window.setInterval(() => void poll(), 1e3);
     return { where: path, stop: () => window.clearInterval(id) };
   }
   /** Writes the exclusions to .megaignore soon, when a sync of this vault exists (otherwise they are written when the
@@ -3085,14 +3325,12 @@ var MegaRoutePlugin = class extends import_obsidian4.Plugin {
   exclusionsChanged() {
     this.countDirty = true;
     if (this.ignoreTimer !== null) window.clearTimeout(this.ignoreTimer);
-    this.ignoreTimer = window.setTimeout(async () => {
+    this.ignoreTimer = window.setTimeout(() => {
       this.ignoreTimer = null;
       if (!this.controller || !this.state.mine) return;
-      try {
-        await this.controller.writeIgnore(this.ignoreOptions());
-      } catch (e) {
+      this.controller.writeIgnore(this.ignoreOptions()).catch((e) => {
         this.say("error", `Could not write .megaignore: ${e instanceof Error ? e.message : String(e)}`);
-      }
+      });
     }, 1500);
   }
   // ---------------------------------------------------------------- status bar, ribbon, menu
@@ -3121,7 +3359,7 @@ Click for the menu`;
   }
   /** The menu of the ribbon icon and the status bar. */
   menu(e) {
-    const m = new import_obsidian4.Menu();
+    const m = new import_obsidian6.Menu();
     const st = this.state;
     m.addItem((i) => i.setTitle(`MEGA: ${this.shown.short}`).setIcon("cloud").setDisabled(true));
     m.addItem((i) => i.setTitle("Refresh status").setIcon("refresh-cw").onClick(() => void this.refresh(true)));

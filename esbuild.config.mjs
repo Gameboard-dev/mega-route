@@ -13,6 +13,9 @@ const options = {
   external: ["obsidian", "electron", ...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
   format: "cjs",
   target: "es2021",
+  // src/node.ts loads Node's modules with import() (on the desktop only); written as require() calls here, which
+  // Obsidian's plugin loader provides, rather than left to the renderer's own module loader.
+  supported: { "dynamic-import": false },
   platform: "browser",
   logLevel: "info",
   sourcemap: prod ? false : "inline",

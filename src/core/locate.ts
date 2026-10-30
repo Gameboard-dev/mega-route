@@ -99,7 +99,7 @@ export async function checkClientPath(
 ): Promise<ClientCheck> {
   let path = input.trim();
   if (!path) return { ok: false, reason: "No path is set for MEGAcmd." };
-  if (/[\u0000-\u001f"]/.test(path)) return { ok: false, reason: "The path contains a control character or a quotation mark." };
+  if ([...path].some((ch) => ch.charCodeAt(0) < 0x20 || ch === '"')) return { ok: false, reason: "The path contains a control character or a quotation mark." };
   const absolute = p.os === "windows" ? /^[A-Za-z]:\\/.test(path) : path.startsWith("/");
   if (!absolute) return { ok: false, reason: `Not an absolute path: ${path}` };
   // MEGAcmd's folder may be given instead of its client program: the client's name is added.

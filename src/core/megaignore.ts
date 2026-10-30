@@ -115,7 +115,7 @@ export function globToEre(p: string): string {
  *     because MEGA's glob `*` also matches `/` (the SDK's `wildcardMatch`, src/utils.cpp), which would widen the rule.
  * MEGA ignores letter case in all of these, as in its own default rules.
  */
-export function mapPattern(raw: string, cls: "-" | "+", configDir = ".obsidian"): MappedPattern | PatternProblem {
+export function mapPattern(raw: string, cls: "-" | "+", configDir: string): MappedPattern | PatternProblem {
   const pattern = raw.trim();
   if (CONTROL.test(raw.replace(/\r?\n$/, ""))) return { pattern, reason: "contains a control character" };
   if (pattern.length > 512) return { pattern: pattern.slice(0, 80) + "…", reason: "is longer than 512 characters" };
@@ -140,7 +140,9 @@ export function mapPattern(raw: string, cls: "-" | "+", configDir = ".obsidian")
 
 /** The plugin's block of rules, from the settings. */
 export function buildBlock(o: IgnoreOptions): IgnoreBlock {
-  const configDir = clean(o.configDir) || ".obsidian";
+  // Both come from Obsidian (Vault#configDir, the manifest's dir): the configuration folder can be renamed.
+  const configDir = clean(o.configDir);
+  if (!configDir) throw new Error("Obsidian's configuration folder is not known, so no rules were made.");
   const pluginDir = clean(o.pluginDir) || `${configDir}/plugins/mega-route`;
   // The folder of versions up to 3.0.1 (id mega-sync-fork): on a device not yet moved it holds 2.x's sign-in data and
   // caches, which must never be synced.

@@ -10,7 +10,7 @@ export interface LogPaneHost {
   settings: Settings;
   saveSettings(): Promise<void>;
   /** Starts following MEGAcmd's log file while the pane is open; returns where it is (or why not) and a stop function. */
-  followMegaCmdLog(): { where: string; stop(): void };
+  followMegaCmdLog(): { where: string; stop: () => void };
   /** Wrap long lines (a per-device setting); off, the pane scrolls sideways. */
   getWrap(): boolean;
   setWrap(on: boolean): void;
@@ -55,20 +55,20 @@ export class LogPane {
     for (const [value, label] of options) select.createEl("option", { value, text: label });
     select.value = this.host.settings.logFilter;
     select.setAttr("aria-label", "Lines to show");
-    select.addEventListener("change", async () => {
+    select.addEventListener("change", () => {
       this.host.settings.logFilter = select.value as Settings["logFilter"];
-      await this.host.saveSettings();
       this.renderAll();
+      this.save();
     });
 
     const auto = bar.createEl("label", { cls: "mega-route-logauto" });
     const cb = auto.createEl("input", { type: "checkbox" });
     cb.checked = this.host.settings.logAutoscroll;
     auto.appendText(" Follow new lines");
-    cb.addEventListener("change", async () => {
+    cb.addEventListener("change", () => {
       this.host.settings.logAutoscroll = cb.checked;
-      await this.host.saveSettings();
       if (cb.checked) this.scrollToEnd();
+      this.save();
     });
 
     const wrapLabel = bar.createEl("label", { cls: "mega-route-logauto" });
@@ -83,14 +83,13 @@ export class LogPane {
 
     const copy = bar.createEl("button", { cls: "clickable-icon", attr: { "aria-label": "Copy the lines shown" } });
     setIcon(copy, "copy");
-    copy.addEventListener("click", async () => {
+    // The clipboard is only written, on this click; never read.
+    copy.addEventListener("click", () => {
       const text = this.host.log.all().filter((l) => this.shows(l)).map((l) => formatLine(l)).join("\n");
-      try {
-        await navigator.clipboard.writeText(text);
-        new Notice("MEGA-Route: log copied. Check it for addresses and paths before sharing it.");
-      } catch (e) {
-        new Notice(`MEGA-Route: could not copy the log (${e instanceof Error ? e.message : String(e)}).`);
-      }
+      navigator.clipboard.writeText(text).then(
+        () => new Notice("MEGA-Route: log copied. Check it for addresses and paths before sharing it."),
+        (e: unknown) => new Notice(`MEGA-Route: could not copy the log (${e instanceof Error ? e.message : String(e)}).`),
+      );
     });
 
     const clear = bar.createEl("button", { cls: "clickable-icon", attr: { "aria-label": "Clear the pane (the files are not changed)" } });
@@ -108,6 +107,11 @@ export class LogPane {
 
     this.renderAll();
     this.unsubscribe = this.host.log.subscribe((added) => this.append(added));
+  }
+
+  /** Saves the pane's settings; a failure is said in the console, never thrown into the event handler. */
+  private save(): void {
+    this.host.saveSettings().catch((e: unknown) => console.error(`MEGA-Route: could not save the log pane's settings: ${e instanceof Error ? e.message : String(e)}`));
   }
 
   private applyWrap(): void {

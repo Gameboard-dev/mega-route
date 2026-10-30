@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { BLOCK_BEGIN, BLOCK_END, MEGA_DEFAULT_RULES, buildBlock, mapPattern, mergeIgnoreFile, readBlock } from "../src/core/megaignore.ts";
 
 const rule = (p: string, cls: "-" | "+" = "-") => {
-  const m = mapPattern(p, cls);
+  const m = mapPattern(p, cls, ".obsidian");
   return "rule" in m ? m.rule : `PROBLEM: ${m.reason}`;
 };
 

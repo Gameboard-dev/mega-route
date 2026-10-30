@@ -641,7 +641,7 @@ export class Controller {
             const left = live ? `${live.length} transfer(s) are still ${[...new Set(live.map((x) => x.state.toLowerCase()))].join(" or ")}` : "MEGAcmd's list of transfers could not be read";
             return fail(2, "stopping other transfers", `${left} after ${Math.round(SIGN_OUT_QUEUE_MS / 1000)} s.`, `${paused}; MEGAcmd is still signed in. Sign out again in a moment, or resume the sync.`);
           }
-          await new Promise((res) => setTimeout(res, 250));
+          await new Promise((res) => window.setTimeout(res, 250));
         }
         this.env.log("info", `Sign-out 2/${STEPS}: other transfers cancelled.`);
       } else {

@@ -115,7 +115,8 @@ function loadPlugin(vault: string, data: unknown) {
     Modal: class {},
     Menu: class {},
     Notice: class {},
-    Platform: { isDesktopApp: true },
+    Platform: { isDesktopApp: true, isDesktop: true },
+    requireApiVersion: () => true,
     setIcon: () => undefined,
   };
   const g = globalThis as Record<string, unknown>;

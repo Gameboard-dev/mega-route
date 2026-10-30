@@ -17,8 +17,9 @@ Needs Node.js 22.6 or later (the tests run TypeScript directly, which Node does 
 used here).
 
 ```sh
-npm ci              # esbuild, TypeScript, Obsidian's type definitions, Node's types
+npm ci              # esbuild, TypeScript, ESLint with Obsidian's rules, Obsidian's type definitions, Node's types
 npm run typecheck   # tsc --noEmit: the types, strictly
+npm run lint        # Obsidian's review rules (eslint-plugin-obsidianmd) and typescript-eslint's type-checked rules; no warning allowed
 npm run build       # esbuild → main.js
 npm test            # the tests (run the build first: two tests load main.js)
 ```
@@ -89,12 +90,12 @@ Releases are built by GitHub Actions (`.github/workflows/release.yml`) from a pu
 
 1. `npm version x.y.z --no-git-tag-version` (sets `package.json`, and through `version-bump.mjs` `manifest.json` and
    `versions.json`), and write `.github/release-notes/x.y.z.md`.
-2. `npm run build && npm test`, then `node scripts/release-check.mjs`: the versions agree, the description fits
+2. `npm run lint && npm run build && npm test`, then `node scripts/release-check.mjs`: the lint is clean, the versions agree, the description fits
    Obsidian's rules, and `main.js`, `manifest.json` and `styles.css` hold no user folder path, email address, inline
    source map, `eval` or shell use. Words of your own that must never appear (your name, folders, account) go in the
    git-ignored file `.release-scan.local`, one per line.
 3. Commit (with the built `main.js`), push, then `git tag x.y.z && git push origin x.y.z`.
 
-The workflow then types, builds and tests again, checks that the committed `main.js` equals a fresh build, runs the
+The workflow then types, lints, builds and tests again, checks that the committed `main.js` equals a fresh build, runs the
 release check, attests the three files' build provenance and publishes the release with exactly those three files
 (`gh attestation verify main.js --repo Gameboard-dev/mega-route` checks a downloaded file).

@@ -37,7 +37,8 @@ export interface DeviceSettings {
 export const DEFAULT_EXCLUDES = [".git/**", "node_modules/**"].join("\n");
 
 export function defaultSettings(vaultName: string): Settings {
-  const name = vaultName.replace(/[\u0000-\u001f"\\/]/g, "").trim() || "Obsidian";
+  // Control characters, quotation marks and slashes are taken out of the vault's name.
+  const name = [...vaultName].filter((ch) => ch.charCodeAt(0) >= 0x20 && !'"\\/'.includes(ch)).join("").trim() || "Obsidian";
   return {
     settingsVersion: SETTINGS_VERSION,
     remoteFolder: `/${name}`,
@@ -132,7 +133,8 @@ export function migrate(raw: unknown, vaultName: string): Migration {
     if (typeof src.showRibbon === "boolean") settings.showRibbon = src.showRibbon;
     notes.push("Carried over from 2.x: the exclude and include patterns, syncing the configuration folder, the status bar and ribbon switches.");
     for (const k of ["ignorePathsRegex", "onlyAllowPathsRegex"]) {
-      if (typeof src[k] === "string" && (src[k] as string).trim()) notes.push(`Not carried over: ${k} (JavaScript regular expressions have no exact MEGA equivalent); add MEGA rules to .megaignore by hand if needed.`);
+      const v = src[k];
+      if (typeof v === "string" && v.trim()) notes.push(`Not carried over: ${k} (JavaScript regular expressions have no exact MEGA equivalent); add MEGA rules to .megaignore by hand if needed.`);
     }
   }
   return { data: { ...settings }, settings, migrated: isLegacy, credentialsRemoved: removed, dropped: isLegacy ? src : null, notes };

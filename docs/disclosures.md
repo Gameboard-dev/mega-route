@@ -197,7 +197,7 @@ check the sources and the built `main.js`, `tests/noshell.test.ts`).
 Everything else goes through Obsidian's API (`src/core/vaultfs.ts`): reading `.megaignore`, the copy kept before each
 write, the plugin's own log file (`DataAdapter.append`), `data.json` (`loadData`/`saveData`), the 2.x settings backup,
 and counting the vault's files for the progress (`DataAdapter.list`, sizes from the vault's file list or
-`DataAdapter.stat`). Node's modules are loaded in one place, `src/node.ts`, and only on the desktop.
+`DataAdapter.stat`). Node's modules are loaded in one place, `src/node.ts`, with `import()` behind Obsidian's `Platform.isDesktop` guard, and only on the desktop.
 
 **Clipboard.** Only the log pane's **Copy** button uses it: when you press it, the lines shown are written to the
 clipboard (`navigator.clipboard.writeText`). The plugin never reads the clipboard.
